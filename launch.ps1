@@ -1,3 +1,6 @@
+# Browser Home Page unlock launcher
+# If TCP port 48173 accepts connections on localhost, do nothing.
+# Otherwise, open CMD and run start.bat in the project directory.
 
 $port = 48173
 $bat = "D:\____Drive_Files\AI_projects\browser_home_page\start.bat"

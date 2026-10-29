@@ -85,20 +85,55 @@ Open each of your browsers and configure them to load `http://localhost:48173`:
 
 ---
 
+## 🔓 Auto-Launch on Windows Unlock
+
+The server can start automatically whenever you unlock your Windows PC — no manual terminal needed.
+
+**How it works:** A Task Scheduler task fires on workstation unlock and runs `launch.ps1`. The script checks if port `48173` is already listening — if yes, it exits silently (no duplicate terminals); if not, it opens CMD and runs `start.bat`.
+
+### Quick Setup
+
+1. Open Task Scheduler (`Win + R` → `taskschd.msc`).
+2. Create a new task (e.g. `Run Home page`).
+3. **General:** Select *Run only when user is logged on*.
+4. **Trigger:** *On workstation unlock* for your user.
+5. **Action:** *Start a program* →
+   - **Program:** `powershell.exe`
+   - **Arguments:** `-NoProfile -ExecutionPolicy Bypass -File "D:\____Drive_Files\AI_projects\browser_home_page\launch.ps1"`
+   - **Start in:** `D:\____Drive_Files\AI_projects\browser_home_page`
+
+### Test manually
+
+```powershell
+# Check if server is running:
+Test-NetConnection 127.0.0.1 -Port 48173 -InformationLevel Quiet
+
+# Run the launcher:
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "D:\____Drive_Files\AI_projects\browser_home_page\launch.ps1"
+```
+
+> 📖 Detailed setup: [docs/TASK_SCHEDULER_SETUP.md](docs/TASK_SCHEDULER_SETUP.md) · Troubleshooting: [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)
+
+---
+
 ## 📁 Project Structure
 
 ```
 browser_home_page/
 ├── data/
-│   └── storage.json     # Persistent JSON storage for todos, notes, sites, settings
+│   └── storage.json       # Persistent JSON storage for todos, notes, sites, settings
+├── docs/
+│   ├── TASK_SCHEDULER_SETUP.md  # Detailed Task Scheduler configuration
+│   └── TROUBLESHOOTING.md       # Common issues and diagnostics
 ├── public/
 │   ├── css/
-│   │   └── style.css    # Clean, modern responsive stylesheet with dark/light modes
+│   │   └── style.css      # Clean, modern responsive stylesheet with dark/light modes
 │   ├── js/
-│   │   └── app.js       # Real-time SSE listener, search engine handler & state sync
-│   └── index.html       # Single-page dashboard markup
-├── server.js            # Zero-dependency Node.js HTTP & SSE synchronization server
-├── start.bat            # 1-click Windows launcher
+│   │   └── app.js         # Real-time SSE listener, search engine handler & state sync
+│   └── index.html         # Single-page dashboard markup
+├── server.js              # Zero-dependency Node.js HTTP & SSE synchronization server
+├── start.bat              # 1-click Windows launcher
+├── launch.ps1             # Auto-launch script (port check + dedup)
 ├── package.json
 └── README.md
 ```
@@ -132,5 +167,5 @@ node --test tests/*.test.js
 - **`tests/server-api.test.js`**: 18 tests verifying all REST endpoints, CORS preflight, persistence, error handling, and static file serving.
 - **`tests/realtime-sync.test.js`**: 4 tests verifying simultaneous multi-client SSE connections and instant event propagation.
 - **`tests/frontend-logic.test.js`**: 14 tests for search engine routing, shortcuts, direct URL detection, XSS escaping, and sorting algorithms.
-- **`tests/browser-e2e.test.js`**: 6 real headless browser tests driving Chrome via DevTools Protocol to verify live DOM rendering, UI clicks, clear button UX, theme switching, to-do interactions, and cross-tab real-time sync.
+- **`tests/browser-e2e.test.js`**: 9 real headless browser tests driving Chrome via DevTools Protocol to verify live DOM rendering, UI clicks, clear button UX, theme switching, to-do interactions, viewport-locked layout, and cross-tab real-time sync.
 
