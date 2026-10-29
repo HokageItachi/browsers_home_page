@@ -1,0 +1,22 @@
+{
+  "name": "browser-home-page",
+  "version": "1.0.0",
+  "description": "Multi-browser synchronized home page with most visited sites, custom search engines, to-do list, and sticky notes.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node --test tests/*.test.js"
+  },
+  "keywords": [
+    "browser-home-page",
+    "dashboard",
+    "real-time-sync",
+    "speed-dial",
+    "todo-list",
+    "sticky-notes"
+  ],
+  "author": "",
+  "license": "MIT"
+}
+

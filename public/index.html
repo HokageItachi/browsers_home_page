@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Home | Dashboard</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- Ambient background glow elements -->
+  <div class="glow-orb orb-1"></div>
+  <div class="glow-orb orb-2"></div>
+
+  <div class="app-container">
+    <!-- Top Navigation / Header -->
+    <header class="app-header">
+      <div class="header-left">
+        <div class="greeting-box">
+          <span class="greeting-time" id="greetingTime">--:--</span>
+          <div class="greeting-details">
+            <h1 class="greeting-title" id="greetingText">Good Day</h1>
+            <span class="greeting-date" id="greetingDate">Loading date...</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="header-right">
+        <!-- Live Sync Status Indicator -->
+        <div class="sync-status" id="syncStatus" title="Live sync with all open browsers">
+          <span class="sync-dot"></span>
+          <span class="sync-label" id="syncLabel">Connecting...</span>
+        </div>
+
+        <!-- Theme Toggle -->
+        <button class="icon-btn theme-toggle" id="themeToggleBtn" title="Toggle Light/Dark Theme">
+          <svg class="sun-icon" viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+          <svg class="moon-icon" viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+        </button>
+
+        <!-- Instructions / Help Button -->
+        <button class="icon-btn" id="helpBtn" title="Homepage Setup & Multi-Browser Tips">
+          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none">
+            <circle cx="12" cy="12" r="10"></circle>
+            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Search Section with Custom Engine Switcher -->
+    <section class="search-section">
+      <div class="search-card">
+        <form id="searchForm" class="search-form" autocomplete="off">
+          <div class="engine-selector-container">
+            <button type="button" class="engine-active-btn" id="activeEngineBtn" title="Switch Search Engine">
+              <span class="engine-icon" id="activeEngineIcon">🔍</span>
+              <span class="engine-name" id="activeEngineName">Google</span>
+              <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2.5" fill="none">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </button>
+            <div class="engine-dropdown" id="engineDropdown">
+              <!-- Engine options injected by JS -->
+            </div>
+          </div>
+
+          <div class="search-input-wrapper">
+            <input 
+              type="text" 
+              id="searchInput" 
+              class="search-input" 
+              placeholder="Search or enter URL..." 
+              autofocus 
+              autocomplete="off"
+            />
+            <button type="button" class="search-clear-btn" id="clearSearchBtn" title="Clear search (Esc)" style="display: none;">&times;</button>
+            <span class="shortcut-badge">Ctrl K</span>
+          </div>
+
+          <button type="submit" class="search-submit-btn" title="Search">
+            <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2.5" fill="none">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+          </button>
+        </form>
+
+        <!-- Quick Engine Selector Chips -->
+        <div class="engine-chips" id="engineChips">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+    </section>
+
+    <!-- Most Visited Sites Grid -->
+    <section class="sites-section">
+      <div class="section-header">
+        <div class="section-title-wrap">
+          <span class="section-emoji">🔥</span>
+          <h2 class="section-title">Most Visited Sites</h2>
+          <span class="badge" id="sitesCountBadge">0</span>
+        </div>
+        <div class="section-actions">
+          <button class="btn btn-sm btn-subtle" id="toggleSortBtn" title="Toggle sorting order">
+            <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <polyline points="19 12 12 19 5 12"></polyline>
+            </svg>
+            <span id="sortOrderLabel">Sort: Visits</span>
+          </button>
+          <button class="btn btn-sm btn-primary" id="addSiteBtn">
+            <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            Add Site
+          </button>
+        </div>
+      </div>
+
+      <div class="sites-grid" id="sitesGrid">
+        <!-- Site items injected by JS -->
+      </div>
+    </section>
+
+    <!-- Bottom Split: To-Do List & Sticky Notes -->
+    <div class="dashboard-split">
+      <!-- To-Do List Column -->
+      <section class="todo-section panel-card">
+        <div class="panel-header">
+          <div class="panel-title-wrap">
+            <span class="panel-emoji">✅</span>
+            <h2 class="panel-title">Tasks & To-Do</h2>
+            <span class="badge" id="todoPendingBadge">0</span>
+          </div>
+          <div class="todo-filter-tabs">
+            <button class="filter-tab active" data-filter="all">All</button>
+            <button class="filter-tab" data-filter="active">Active</button>
+            <button class="filter-tab" data-filter="completed">Done</button>
+          </div>
+        </div>
+
+        <form id="addTodoForm" class="todo-input-form">
+          <input 
+            type="text" 
+            id="todoInput" 
+            class="todo-input" 
+            placeholder="Add a new task... (press Enter)" 
+            maxlength="200"
+          />
+          <button type="submit" class="btn btn-primary btn-sm">Add</button>
+        </form>
+
+        <div class="todo-list-container">
+          <ul class="todo-list" id="todoList">
+            <!-- Todos injected by JS -->
+          </ul>
+          <div class="empty-state" id="todoEmptyState" style="display: none;">
+            <span>🎉 All tasks complete or none added yet!</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Sticky Notes Column -->
+      <section class="notes-section panel-card">
+        <div class="panel-header">
+          <div class="panel-title-wrap">
+            <span class="panel-emoji">📌</span>
+            <h2 class="panel-title">Sticky Notes</h2>
+            <span class="badge" id="notesCountBadge">0</span>
+          </div>
+          <button class="btn btn-sm btn-primary" id="addNoteBtn">
+            <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            New Note
+          </button>
+        </div>
+
+        <div class="sticky-notes-board" id="notesBoard">
+          <!-- Sticky Notes injected by JS -->
+        </div>
+      </section>
+    </div>
+
+    <!-- Footer info -->
+    <footer class="app-footer">
+      <p>Synchronized across all browsers & tabs • Local Real-Time Hub</p>
+    </footer>
+  </div>
+
+  <!-- Modal for Adding / Editing Site -->
+  <div class="modal-overlay" id="siteModal" style="display: none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="modalSiteTitle">Add Quick Link</h3>
+        <button class="modal-close" id="closeSiteModalBtn">&times;</button>
+      </div>
+      <form id="siteForm" class="modal-body">
+        <input type="hidden" id="siteFormId" />
+        <div class="form-group">
+          <label for="siteFormTitle">Site Name</label>
+          <input type="text" id="siteFormTitle" class="form-control" placeholder="e.g. YouTube, GitHub" required />
+        </div>
+        <div class="form-group">
+          <label for="siteFormUrl">Web Address (URL)</label>
+          <input type="text" id="siteFormUrl" class="form-control" placeholder="e.g. https://github.com" required />
+        </div>
+        <div class="form-checkbox">
+          <label>
+            <input type="checkbox" id="siteFormPinned">
+            <span>Pin this site to top</span>
+          </label>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-danger btn-sm" id="deleteSiteModalBtn" style="display: none; margin-right: auto;">Delete Site</button>
+          <button type="button" class="btn btn-secondary" id="cancelSiteModalBtn">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="saveSiteBtn">Save Site</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Help & Browser Setup Modal -->
+  <div class="modal-overlay" id="helpModal" style="display: none;">
+    <div class="modal-card help-modal-card">
+      <div class="modal-header">
+        <h3>How to use in Multiple Browsers</h3>
+        <button class="modal-close" id="closeHelpModalBtn">&times;</button>
+      </div>
+      <div class="modal-body help-content">
+        <div class="help-step">
+          <div class="step-num">1</div>
+          <div class="step-text">
+            <strong>Server Address</strong>
+            <p>This home page runs on: <code id="serverAddressCode">http://localhost:48173</code></p>
+          </div>
+        </div>
+
+        <div class="help-step">
+          <div class="step-num">2</div>
+          <div class="step-text">
+            <strong>Set as Homepage / New Tab in Browsers</strong>
+            <ul class="help-browser-list">
+              <li><strong>Google Chrome:</strong> Settings &rarr; On startup &rarr; Open a specific page &rarr; Add <code>http://localhost:48173</code></li>
+              <li><strong>Microsoft Edge:</strong> Settings &rarr; Start, home, and new tabs &rarr; Open these pages &rarr; Add <code>http://localhost:48173</code></li>
+              <li><strong>Firefox:</strong> Settings &rarr; Home &rarr; Homepage and new windows &rarr; Custom URLs &rarr; <code>http://localhost:48173</code></li>
+              <li><strong>Brave:</strong> Settings &rarr; Get started &rarr; On startup &rarr; Add <code>http://localhost:48173</code></li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="help-step">
+          <div class="step-num">3</div>
+          <div class="step-text">
+            <strong>Instant Live Sync</strong>
+            <p>Every to-do added or checked off, every sticky note edited, and every site visited synchronizes <strong>immediately</strong> across all your open browsers via live Server-Sent Events.</p>
+          </div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-primary" id="okHelpModalBtn">Got it!</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
+
