@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bookmarks Library | Hub</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔖</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/bookmarks.css">
+</head>
+<body>
+  <!-- Ambient background glow elements -->
+  <div class="glow-orb orb-1"></div>
+  <div class="glow-orb orb-2"></div>
+
+  <div class="bm-app">
+    <!-- Top Bar -->
+    <header class="bm-header">
+      <div class="bm-header-left">
+        <a href="/" class="bm-back-btn" title="Back to Dashboard">
+          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2.2" fill="none">
+            <polyline points="15 18 9 12 15 6"></polyline>
+          </svg>
+        </a>
+        <div class="bm-title-group">
+          <div class="bm-title-icon-box">
+            <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none">
+              <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+            </svg>
+          </div>
+          <div class="bm-title-text-wrap">
+            <h1 class="bm-page-title">Bookmarks Library</h1>
+            <span class="bm-count-pill" id="totalCount">Loading bookmarks...</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="bm-header-right">
+        <!-- Search bar -->
+        <div class="bm-search-wrap">
+          <svg class="bm-search-icon" viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input type="text" id="bmSearch" class="bm-search-input" placeholder="Search by title, url, folder, profile... (Ctrl+K)" autocomplete="off" />
+          <button type="button" class="bm-search-clear" id="bmSearchClear" title="Clear search" style="display: none;">&times;</button>
+          <span class="bm-search-kbd">Ctrl K</span>
+        </div>
+
+        <!-- View Mode Switcher -->
+        <div class="bm-view-toggle">
+          <button class="bm-view-btn active" data-view="grid" title="Cards View (Spacious)">
+            <svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" stroke-width="2" fill="none">
+              <rect x="3" y="3" width="7" height="7" rx="1.5"></rect>
+              <rect x="14" y="3" width="7" height="7" rx="1.5"></rect>
+              <rect x="3" y="14" width="7" height="7" rx="1.5"></rect>
+              <rect x="14" y="14" width="7" height="7" rx="1.5"></rect>
+            </svg>
+          </button>
+          <button class="bm-view-btn" data-view="list" title="Detailed List View">
+            <svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" stroke-width="2" fill="none">
+              <line x1="8" y1="6" x2="21" y2="6"></line>
+              <line x1="8" y1="12" x2="21" y2="12"></line>
+              <line x1="8" y1="18" x2="21" y2="18"></line>
+              <line x1="3" y1="6" x2="3.01" y2="6"></line>
+              <line x1="3" y1="12" x2="3.01" y2="12"></line>
+              <line x1="3" y1="18" x2="3.01" y2="18"></line>
+            </svg>
+          </button>
+          <button class="bm-view-btn" data-view="compact" title="Compact Table View">
+            <svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" stroke-width="2" fill="none">
+              <line x1="3" y1="5" x2="21" y2="5"></line>
+              <line x1="3" y1="10" x2="21" y2="10"></line>
+              <line x1="3" y1="15" x2="21" y2="15"></line>
+              <line x1="3" y1="20" x2="21" y2="20"></line>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Theme Toggle -->
+        <button class="icon-btn theme-toggle" id="themeToggleBtn" title="Toggle Light/Dark Theme">
+          <svg class="sun-icon" viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+          <svg class="moon-icon" viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+        </button>
+
+        <!-- Add Bookmark Button -->
+        <button class="bm-add-btn" id="addBookmarkBtn">
+          <svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" stroke-width="2.5" fill="none">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          <span>Add Bookmark</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Workspace: Sidebar + Bookmarks Feed -->
+    <div class="bm-layout">
+      <!-- Groups Sidebar -->
+      <aside class="bm-sidebar" id="bmSidebar">
+        <div class="bm-sidebar-header">
+          <div class="bm-sidebar-title-wrap">
+            <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+            </svg>
+            <span class="bm-sidebar-label">Collections & Profiles</span>
+          </div>
+          <button class="bm-sidebar-add" id="addGroupBtn" title="Create New Custom Group">
+            <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" stroke-width="2.5" fill="none">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+          </button>
+        </div>
+        <nav class="bm-group-list" id="groupList">
+          <!-- Groups injected by JS -->
+        </nav>
+      </aside>
+
+      <!-- Main Bookmarks Content Area -->
+      <main class="bm-content">
+        <!-- Content Sub-Header with Filter Title & Controls -->
+        <div class="bm-content-header" id="contentHeader">
+          <div class="bm-active-info">
+            <div class="bm-breadcrumb-nav" id="breadcrumbNav">
+              <span class="bm-crumb-root">Bookmarks</span>
+              <span class="bm-crumb-sep">/</span>
+              <span class="bm-crumb-current" id="activeGroupTitle">All Bookmarks</span>
+            </div>
+            <span class="bm-results-count" id="activeResultsCount">0 items</span>
+          </div>
+
+          <div class="bm-controls-wrap">
+            <!-- Quick Browser Filter Pills -->
+            <div class="bm-browser-chips" id="browserChips">
+              <!-- Filter pills injected by JS -->
+            </div>
+
+            <!-- Sort Dropdown -->
+            <div class="bm-sort-wrap">
+              <label for="bmSortSelect" class="bm-sort-label">Sort:</label>
+              <select id="bmSortSelect" class="bm-sort-select">
+                <option value="newest">Newest First</option>
+                <option value="oldest">Oldest First</option>
+                <option value="title_asc">Title (A - Z)</option>
+                <option value="title_desc">Title (Z - A)</option>
+                <option value="domain">Domain / Site</option>
+              </select>
+            </div>
+
+            <!-- Custom Group Actions (Rename/Delete) -->
+            <div class="bm-group-actions" id="groupActions" style="display: none;">
+              <button class="bm-action-btn" id="renameGroupBtn" title="Rename this Group">
+                <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" stroke-width="2" fill="none">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                </svg>
+                <span>Rename</span>
+              </button>
+              <button class="bm-action-btn bm-action-danger" id="deleteGroupBtn" title="Delete Group">
+                <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" stroke-width="2" fill="none">
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                </svg>
+                <span>Delete</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bookmarks Container -->
+        <div class="bm-grid view-grid" id="bookmarksGrid">
+          <!-- Bookmark cards injected by JS -->
+        </div>
+
+        <!-- Empty State -->
+        <div class="bm-empty" id="bmEmpty" style="display: none;">
+          <div class="bm-empty-icon-box">
+            <svg viewBox="0 0 24 24" width="44" height="44" stroke="currentColor" stroke-width="1.6" fill="none">
+              <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+            </svg>
+          </div>
+          <h3 class="bm-empty-title">No bookmarks found</h3>
+          <p class="bm-empty-text" id="bmEmptyText">Try adjusting your search query or select another profile collection.</p>
+          <button class="btn btn-primary btn-sm" id="emptyAddBtn">Add a Bookmark</button>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div class="bm-toast" id="bmToast">Link copied to clipboard</div>
+
+  <!-- Add/Edit Bookmark Modal -->
+  <div class="modal-overlay" id="bookmarkModal" style="display: none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="bmModalTitle">Add Bookmark</h3>
+        <button class="modal-close" id="closeBmModal">&times;</button>
+      </div>
+      <form id="bmForm" class="modal-body">
+        <input type="hidden" id="bmFormId" />
+        <div class="form-group">
+          <label for="bmFormTitle">Title</label>
+          <input type="text" id="bmFormTitle" class="form-control" placeholder="e.g. GitHub Repository, Documentation" required />
+        </div>
+        <div class="form-group">
+          <label for="bmFormUrl">URL (Web Address)</label>
+          <input type="text" id="bmFormUrl" class="form-control" placeholder="e.g. https://github.com" required />
+        </div>
+        <div class="form-group">
+          <label for="bmFormGroup">Collection / Group</label>
+          <div class="bm-group-select-wrap">
+            <select id="bmFormGroup" class="form-control">
+              <option value="Default">Default</option>
+            </select>
+            <button type="button" class="bm-new-group-inline" id="bmNewGroupInline" title="Create new group inline">
+              <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2.5" fill="none">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-danger btn-sm" id="deleteBmBtn" style="display: none; margin-right: auto;">Delete Bookmark</button>
+          <button type="button" class="btn btn-secondary" id="cancelBmModal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Bookmark</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Rename Group Modal -->
+  <div class="modal-overlay" id="renameModal" style="display: none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Rename Group</h3>
+        <button class="modal-close" id="closeRenameModal">&times;</button>
+      </div>
+      <form id="renameForm" class="modal-body">
+        <div class="form-group">
+          <label for="renameInput">New Name</label>
+          <input type="text" id="renameInput" class="form-control" placeholder="Enter new group name" required />
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" id="cancelRenameModal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Name</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="js/bookmarks.js"></script>
+</body>
+</html>

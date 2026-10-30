@@ -51,12 +51,13 @@ function createApp(options = {}) {
           sites: [],
           todos: [],
           notes: [],
+          bookmarks: [],
         };
         saveStateSync();
       }
     } catch (err) {
       console.error("Error loading state:", err);
-      state = { settings: {}, sites: [], todos: [], notes: [] };
+      state = { settings: {}, sites: [], todos: [], notes: [], bookmarks: [] };
     }
   }
 
@@ -330,6 +331,119 @@ function createApp(options = {}) {
           return sendJSON(res, 200, { success: true });
         }
 
+        // Bookmarks - Get All
+        if (pathname === "/api/bookmarks" && req.method === "GET") {
+          if (!state.bookmarks) state.bookmarks = [];
+          return sendJSON(res, 200, state.bookmarks);
+        }
+
+        // Bookmarks - Groups Rename (must be before individual bookmark match)
+        if (
+          pathname === "/api/bookmarks/groups/rename" &&
+          req.method === "PUT"
+        ) {
+          if (!state.bookmarks) state.bookmarks = [];
+          const body = await parseRequestBody(req);
+          const { oldName, newName } = body;
+          if (!oldName || !newName) {
+            return sendJSON(res, 400, {
+              error: "oldName and newName are required",
+            });
+          }
+          state.bookmarks.forEach((bm) => {
+            if (bm.group === oldName) bm.group = newName;
+          });
+          saveState();
+          broadcast(
+            "bookmarks_updated",
+            { bookmarks: state.bookmarks },
+            clientId,
+          );
+          return sendJSON(res, 200, { success: true });
+        }
+
+        // Bookmarks - Groups Delete (must be before individual bookmark match)
+        const groupDeleteMatch = pathname.match(
+          /^\/api\/bookmarks\/groups\/(.+)$/,
+        );
+        if (groupDeleteMatch && req.method === "DELETE") {
+          if (!state.bookmarks) state.bookmarks = [];
+          const groupName = decodeURIComponent(groupDeleteMatch[1]);
+          state.bookmarks = state.bookmarks.filter(
+            (bm) => bm.group !== groupName,
+          );
+          saveState();
+          broadcast(
+            "bookmarks_updated",
+            { bookmarks: state.bookmarks },
+            clientId,
+          );
+          return sendJSON(res, 200, { success: true });
+        }
+
+        // Bookmarks - Add
+        if (pathname === "/api/bookmarks" && req.method === "POST") {
+          if (!state.bookmarks) state.bookmarks = [];
+          const body = await parseRequestBody(req);
+          const newBookmark = {
+            id:
+              "bm-" +
+              Date.now() +
+              "-" +
+              Math.random().toString(36).substr(2, 4),
+            title: body.title || "Untitled",
+            url: body.url || "",
+            favicon: body.favicon || "",
+            group: body.group || "Default",
+            createdAt: Date.now(),
+          };
+          state.bookmarks.push(newBookmark);
+          saveState();
+          broadcast(
+            "bookmarks_updated",
+            { bookmarks: state.bookmarks },
+            clientId,
+          );
+          return sendJSON(res, 201, newBookmark);
+        }
+
+        // Bookmarks - Update / Delete by ID
+        const bookmarkMatch = pathname.match(/^\/api\/bookmarks\/([^/]+)$/);
+        if (bookmarkMatch && req.method === "PUT") {
+          if (!state.bookmarks) state.bookmarks = [];
+          const bmId = bookmarkMatch[1];
+          const body = await parseRequestBody(req);
+          const index = state.bookmarks.findIndex((bm) => bm.id === bmId);
+          if (index !== -1) {
+            state.bookmarks[index] = {
+              ...state.bookmarks[index],
+              ...body,
+              id: bmId,
+            };
+            saveState();
+            broadcast(
+              "bookmarks_updated",
+              { bookmarks: state.bookmarks },
+              clientId,
+            );
+            return sendJSON(res, 200, state.bookmarks[index]);
+          }
+          return sendJSON(res, 404, { error: "Bookmark not found" });
+        }
+
+        if (bookmarkMatch && req.method === "DELETE") {
+          if (!state.bookmarks) state.bookmarks = [];
+          const bmId = bookmarkMatch[1];
+          state.bookmarks = state.bookmarks.filter((bm) => bm.id !== bmId);
+          saveState();
+          broadcast(
+            "bookmarks_updated",
+            { bookmarks: state.bookmarks },
+            clientId,
+          );
+          return sendJSON(res, 200, { success: true });
+        }
+
         return sendJSON(res, 404, { error: "API route not found" });
       } catch (err) {
         console.error("API Error:", err);
@@ -437,13 +551,36 @@ function createApp(options = {}) {
 
 // If executed directly from CLI
 if (require.main === module) {
+  const { createBookmarkScanner } = require('./bookmark-scanner');
   const app = createApp();
   app.start().then(({ port }) => {
     console.log(`=======================================================`);
     console.log(`  🌐 Multi-Browser Synchronized Home Page is running!  `);
     console.log(`  🔗 Open URL: http://localhost:${port}                 `);
     console.log(`  ⚡ Real-Time SSE Sync active across all browsers     `);
+    console.log(`  🔖 Bookmark auto-import scanning every 30 seconds    `);
     console.log(`=======================================================`);
+
+    // Start bookmark auto-scanner
+    const scanner = createBookmarkScanner({
+      getState: app.getState,
+      saveState: app.saveStateSync,
+      broadcast: app.broadcast,
+      intervalMs: 30000,
+    });
+    scanner.start();
+
+    // Graceful shutdown
+    process.on('SIGINT', async () => {
+      scanner.stop();
+      await app.stop();
+      process.exit(0);
+    });
+    process.on('SIGTERM', async () => {
+      scanner.stop();
+      await app.stop();
+      process.exit(0);
+    });
   }).catch(() => {
     process.exit(1);
   });

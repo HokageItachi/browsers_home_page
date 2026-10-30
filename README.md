@@ -33,6 +33,12 @@ A modern, high-performance browser homepage and dashboard designed for multi-bro
   - Real-time debounced auto-sync while typing.
   - Instant color switcher and quick delete.
 
+- **🔖 Universal Bookmarks Hub & Multi-Browser Auto-Sync:**
+  - Background auto-scanner for Chromium browsers (**Google Chrome**, **Microsoft Edge**, and **Brave**).
+  - Preserves browser profiles and original folder breadcrumb hierarchies (e.g., `Brave • anshu66`, `Edge • Personal`).
+  - **3 View Modes:** Spacious Cards Grid, Precision Multi-Column Table List, and High-Density Compact View.
+  - Interactive controls: Copy link (with toast alert), open in new tab, search, sorting (Newest, Oldest, Title, Domain), quick browser filter pills, inline editing, and deletion.
+
 - **🎨 Themes & Aesthetics:**
   - Modern glassmorphism UI with subtle ambient glow.
   - One-click Dark / Light mode toggle (synced across sessions).

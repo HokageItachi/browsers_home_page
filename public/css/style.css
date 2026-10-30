@@ -219,6 +219,38 @@ body {
   100% { transform: scale(0.95); opacity: 0.7; }
 }
 
+/* ======================== NAV PILL BUTTON ======================== */
+
+.nav-pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-card);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border-color);
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.25s;
+  white-space: nowrap;
+}
+
+.nav-pill-btn:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--border-focus);
+  color: var(--text-main);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px var(--primary-glow);
+}
+
+.nav-pill-btn svg {
+  flex-shrink: 0;
+}
+
 /* ======================== BUTTONS (shared) ======================== */
 
 .icon-btn {
@@ -1157,6 +1189,9 @@ body {
   .engine-chips { display: none; }  /* hide chips on mobile, use dropdown */
 
   .site-card { min-width: 90px; padding: 10px 8px; }
+
+  .nav-pill-btn span { display: none; }
+  .nav-pill-btn { padding: 6px 8px; }
 }
 
 /* Very short viewport: tighten everything further */
