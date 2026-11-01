@@ -244,5 +244,37 @@ describe('Password Manager API & Scanner Test Suite', () => {
     const google = unlockedGet.find(p => p.title === 'Google');
     assert.ok(google);
     assert.equal(google.password, 'GooglePassword#2026');
+
+    // 9. Change Master Password
+    const changeRes = await fetch(`${baseUrl}/api/passwords/vault/change-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        currentMasterPassword: 'MySecureMasterPassword123!',
+        newMasterPassword: 'BrandNewMasterPassword#999'
+      })
+    });
+    assert.equal(changeRes.status, 200);
+
+    // 10. Lock and verify old password no longer works
+    await fetch(`${baseUrl}/api/passwords/vault/lock`, { method: 'POST' });
+    const oldUnlock = await fetch(`${baseUrl}/api/passwords/vault/unlock`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ masterPassword: 'MySecureMasterPassword123!' })
+    });
+    assert.equal(oldUnlock.status, 401);
+
+    // 11. Unlock with brand new password works and decrypts data
+    const newUnlock = await fetch(`${baseUrl}/api/passwords/vault/unlock`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ masterPassword: 'BrandNewMasterPassword#999' })
+    });
+    assert.equal(newUnlock.status, 200);
+
+    const reDecrypted = await (await fetch(`${baseUrl}/api/passwords`)).json();
+    const googleCheck = reDecrypted.find(p => p.title === 'Google');
+    assert.equal(googleCheck.password, 'GooglePassword#2026');
   });
 });

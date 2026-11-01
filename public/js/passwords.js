@@ -58,7 +58,7 @@ function getCategoryIcon(name) {
 let pmSearch, pmSearchClear, passwordsGrid, pmEmpty, pmEmptyText, totalCount;
 let categoryList, activeCategoryTitle, activeResultsCount, categoryActions;
 let renameCategoryBtn, deleteCategoryBtn, pmSortSelect, pmToast, browserChips;
-let statStrong, statMedium, statWeak;
+let statStrong, statMedium, statWeak, statEmpty, statRowStrong, statRowMedium, statRowWeak, statRowEmpty;
 let passwordModal, pmForm, pmModalTitle, pmFormId, pmFormTitle, pmFormUrl;
 let pmFormUsername, pmFormPassword, pmToggleFormPwd, pmGenerateInline;
 let pmFormCategory, pmFormNotes, pmFormTagsInput, pmTagsList;
@@ -73,6 +73,7 @@ let emptyAddBtn, emptySyncBtn, crumbRoot;
 let vaultStatusBtn, vaultLockIcon, vaultStatusLabel;
 let vaultSetupModal, vaultSetupForm, masterPwdInput, confirmMasterPwdInput, closeVaultSetupModal, cancelVaultSetupModal;
 let vaultUnlockModal, vaultUnlockForm, unlockPwdInput, closeVaultUnlockModal, cancelVaultUnlockModal;
+let changeMasterPwdBtn, changeMasterPwdModal, changeMasterPwdForm, currentMasterPwdInput, newMasterPwdInput, confirmNewMasterPwdInput, closeChangeMasterPwdModal, cancelChangeMasterPwdModal;
 let vaultState = { isConfigured: false, isUnlocked: true };
 
 function initDOMElements() {
@@ -96,6 +97,11 @@ function initDOMElements() {
   statStrong = document.getElementById('statStrong');
   statMedium = document.getElementById('statMedium');
   statWeak = document.getElementById('statWeak');
+  statEmpty = document.getElementById('statEmpty');
+  statRowStrong = document.getElementById('statRowStrong');
+  statRowMedium = document.getElementById('statRowMedium');
+  statRowWeak = document.getElementById('statRowWeak');
+  statRowEmpty = document.getElementById('statRowEmpty');
   crumbRoot = document.getElementById('crumbRoot');
 
   // Password Modal
@@ -173,6 +179,15 @@ function initDOMElements() {
   unlockPwdInput = document.getElementById('unlockPwdInput');
   closeVaultUnlockModal = document.getElementById('closeVaultUnlockModal');
   cancelVaultUnlockModal = document.getElementById('cancelVaultUnlockModal');
+
+  changeMasterPwdBtn = document.getElementById('changeMasterPwdBtn');
+  changeMasterPwdModal = document.getElementById('changeMasterPwdModal');
+  changeMasterPwdForm = document.getElementById('changeMasterPwdForm');
+  currentMasterPwdInput = document.getElementById('currentMasterPwdInput');
+  newMasterPwdInput = document.getElementById('newMasterPwdInput');
+  confirmNewMasterPwdInput = document.getElementById('confirmNewMasterPwdInput');
+  closeChangeMasterPwdModal = document.getElementById('closeChangeMasterPwdModal');
+  cancelChangeMasterPwdModal = document.getElementById('cancelChangeMasterPwdModal');
 }
 
 // ── API ─────────────────────────────────────────────────────────────────────
@@ -367,7 +382,13 @@ function getFilteredAndSorted() {
     if (activeCategory === '__starred__') {
       list = list.filter(p => p.starred);
     } else if (activeCategory === '__weak__') {
-      list = list.filter(p => analyzeStrength(p.password).level === 'weak');
+      list = list.filter(p => (p.password && p.password.trim() !== '') && analyzeStrength(p.password).level === 'weak');
+    } else if (activeCategory === '__empty__') {
+      list = list.filter(p => !p.password || p.password.trim() === '');
+    } else if (activeCategory === '__medium__') {
+      list = list.filter(p => (p.password && p.password.trim() !== '') && analyzeStrength(p.password).level === 'medium');
+    } else if (activeCategory === '__strong__') {
+      list = list.filter(p => (p.password && p.password.trim() !== '') && analyzeStrength(p.password).level === 'strong');
     } else if (activeCategory.startsWith('__browser__:')) {
       const browser = activeCategory.replace('__browser__:', '');
       list = list.filter(p => p.browserSource === browser);
@@ -451,7 +472,7 @@ function renderCategories() {
   }
 
   // 3. Weak Passwords
-  const weakCount = passwords.filter(p => analyzeStrength(p.password).level === 'weak').length;
+  const weakCount = passwords.filter(p => (p.password && p.password.trim() !== '') && analyzeStrength(p.password).level === 'weak').length;
   if (weakCount > 0) {
     appendCatItem(categoryList, {
       label: 'Weak Passwords',
@@ -459,6 +480,18 @@ function renderCategories() {
       icon: '⚠️',
       isActive: activeCategory === '__weak__',
       onClick: () => { activeCategory = '__weak__'; activeBrowserFilter = null; renderAll(); }
+    });
+  }
+
+  // 3b. Empty / Missing Passwords
+  const emptyCount = passwords.filter(p => !p.password || p.password.trim() === '').length;
+  if (emptyCount > 0) {
+    appendCatItem(categoryList, {
+      label: 'Empty Passwords',
+      count: emptyCount,
+      icon: '⭕',
+      isActive: activeCategory === '__empty__',
+      onClick: () => { activeCategory = '__empty__'; activeBrowserFilter = null; renderAll(); }
     });
   }
 
@@ -577,16 +610,21 @@ function renderBrowserChips() {
 
 function renderStrengthStats() {
   if (!statStrong) return;
-  let strong = 0, medium = 0, weak = 0;
+  let strong = 0, medium = 0, weak = 0, empty = 0;
   passwords.forEach(p => {
-    const s = analyzeStrength(p.password).level;
-    if (s === 'strong') strong++;
-    else if (s === 'medium') medium++;
-    else weak++;
+    if (!p.password || p.password.trim() === '') {
+      empty++;
+    } else {
+      const s = analyzeStrength(p.password).level;
+      if (s === 'strong') strong++;
+      else if (s === 'medium') medium++;
+      else weak++;
+    }
   });
   statStrong.textContent = strong;
   statMedium.textContent = medium;
   statWeak.textContent = weak;
+  if (statEmpty) statEmpty.textContent = empty;
 }
 
 // ── Passwords View Rendering ────────────────────────────────────────────────
@@ -609,6 +647,12 @@ function renderPasswords() {
       activeCategoryTitle.textContent = 'Favourites';
     } else if (activeCategory === '__weak__') {
       activeCategoryTitle.textContent = 'Weak Passwords';
+    } else if (activeCategory === '__empty__') {
+      activeCategoryTitle.textContent = 'Empty / Missing Passwords';
+    } else if (activeCategory === '__medium__') {
+      activeCategoryTitle.textContent = 'Medium Strength Passwords';
+    } else if (activeCategory === '__strong__') {
+      activeCategoryTitle.textContent = 'Strong Passwords';
     } else if (activeCategory.startsWith('__browser__:')) {
       activeCategoryTitle.textContent = activeCategory.replace('__browser__:', '') + ' Passwords';
     } else if (activeCategory.startsWith('__group__:')) {
@@ -1602,6 +1646,37 @@ function setupEventListeners() {
     if (e.target === vaultUnlockModal) closeModal(vaultUnlockModal);
   });
   vaultUnlockForm?.addEventListener('submit', handleVaultUnlockSubmit);
+
+  // Change Master Password Modal Listeners
+  changeMasterPwdBtn?.addEventListener('click', openChangeMasterPwdModal);
+  closeChangeMasterPwdModal?.addEventListener('click', () => closeModal(changeMasterPwdModal));
+  cancelChangeMasterPwdModal?.addEventListener('click', () => closeModal(changeMasterPwdModal));
+  changeMasterPwdModal?.addEventListener('click', (e) => {
+    if (e.target === changeMasterPwdModal) closeModal(changeMasterPwdModal);
+  });
+  changeMasterPwdForm?.addEventListener('submit', handleChangeMasterPwdSubmit);
+
+  // Vault Health Quick Filters
+  statRowStrong?.addEventListener('click', () => {
+    activeCategory = '__strong__';
+    activeBrowserFilter = null;
+    renderAll();
+  });
+  statRowMedium?.addEventListener('click', () => {
+    activeCategory = '__medium__';
+    activeBrowserFilter = null;
+    renderAll();
+  });
+  statRowWeak?.addEventListener('click', () => {
+    activeCategory = '__weak__';
+    activeBrowserFilter = null;
+    renderAll();
+  });
+  statRowEmpty?.addEventListener('click', () => {
+    activeCategory = '__empty__';
+    activeBrowserFilter = null;
+    renderAll();
+  });
 }
 
 // ── Vault Controller ────────────────────────────────────────────────────────
@@ -1620,6 +1695,9 @@ async function checkVaultStatus() {
 }
 
 function updateVaultUI() {
+  if (changeMasterPwdBtn) {
+    changeMasterPwdBtn.style.display = (vaultState.isConfigured && vaultState.isUnlocked) ? 'inline-flex' : 'none';
+  }
   if (!vaultStatusBtn) return;
   if (!vaultState.isConfigured) {
     vaultStatusBtn.className = 'pm-pill-btn pm-vault-btn';
@@ -1716,6 +1794,45 @@ async function handleVaultUnlockSubmit(e) {
     }
   } catch (err) {
     showToast('Incorrect Master Password ❌');
+  }
+}
+
+function openChangeMasterPwdModal() {
+  if (currentMasterPwdInput) currentMasterPwdInput.value = '';
+  if (newMasterPwdInput) newMasterPwdInput.value = '';
+  if (confirmNewMasterPwdInput) confirmNewMasterPwdInput.value = '';
+  openModal(changeMasterPwdModal);
+  if (currentMasterPwdInput) currentMasterPwdInput.focus();
+}
+
+async function handleChangeMasterPwdSubmit(e) {
+  e.preventDefault();
+  const currentMasterPassword = currentMasterPwdInput?.value || '';
+  const newMasterPassword = newMasterPwdInput?.value || '';
+  const conf = confirmNewMasterPwdInput?.value || '';
+
+  if (newMasterPassword !== conf) {
+    showToast('New passwords do not match! ❌');
+    return;
+  }
+  if (newMasterPassword.length < 6) {
+    showToast('New master password must be at least 6 characters');
+    return;
+  }
+
+  try {
+    showToast('Re-encrypting vault credentials...');
+    const res = await apiRequest('/api/passwords/vault/change-password', 'POST', {
+      currentMasterPassword,
+      newMasterPassword
+    });
+    if (res.success) {
+      closeModal(changeMasterPwdModal);
+      showToast('Master Password Updated! 🔐✓');
+      reloadPasswords();
+    }
+  } catch (err) {
+    showToast('Incorrect current password or update failed ❌');
   }
 }
 

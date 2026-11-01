@@ -573,6 +573,58 @@ function createApp(options = {}) {
           return sendJSON(res, 200, { success: true, isUnlocked: false });
         }
 
+        // Vault - Change Master Password
+        if (pathname === "/api/passwords/vault/change-password" && req.method === "POST") {
+          if (!state.vault || !state.vault.isConfigured) {
+            return sendJSON(res, 400, { error: "Vault is not configured yet" });
+          }
+          const body = await parseRequestBody(req);
+          const currentPassword = (body.currentMasterPassword || "").trim();
+          const newPassword = (body.newMasterPassword || "").trim();
+
+          if (!currentPassword) {
+            return sendJSON(res, 400, { error: "Current master password is required" });
+          }
+          if (!newPassword || newPassword.length < 6) {
+            return sendJSON(res, 400, { error: "New master password must be at least 6 characters" });
+          }
+
+          // Verify current password
+          const oldKey = deriveVaultKey(currentPassword, state.vault.salt);
+          const testHash = computeVaultCheck(oldKey);
+          if (testHash !== state.vault.testHash) {
+            return sendJSON(res, 401, { error: "Current master password is incorrect" });
+          }
+
+          // Generate new salt and derive new key
+          const newSalt = crypto.randomBytes(16);
+          const newSaltHex = newSalt.toString("hex");
+          const newKey = deriveVaultKey(newPassword, newSaltHex);
+          const newTestHash = computeVaultCheck(newKey);
+
+          // Re-encrypt all existing passwords with new key
+          if (Array.isArray(state.passwords)) {
+            for (const p of state.passwords) {
+              if (p.password) {
+                const plain = decryptWithVaultKey(p.password, oldKey);
+                p.password = encryptWithVaultKey(plain, newKey);
+              }
+            }
+          }
+
+          state.vault = {
+            isConfigured: true,
+            salt: newSaltHex,
+            testHash: newTestHash,
+            updatedAt: Date.now(),
+          };
+
+          activeVaultKey = newKey;
+          saveState();
+          broadcast("vault_updated", { isConfigured: true, isUnlocked: true }, clientId);
+          return sendJSON(res, 200, { success: true, message: "Master password changed successfully" });
+        }
+
         // Passwords - Get All
         if (pathname === "/api/passwords" && req.method === "GET") {
           if (!state.passwords) state.passwords = [];
