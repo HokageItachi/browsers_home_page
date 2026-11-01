@@ -181,4 +181,68 @@ describe('Password Manager API & Scanner Test Suite', () => {
     assert.ok(scanner.scan);
     scanner.stop();
   });
+
+  test('Vault: Setup master password, encrypts storage on disk, locks and unlocks', async () => {
+    // 1. Check initial status
+    const statusRes1 = await fetch(`${baseUrl}/api/passwords/vault/status`);
+    assert.equal(statusRes1.status, 200);
+    const s1 = await statusRes1.json();
+    assert.equal(s1.isConfigured, false);
+
+    // 2. Setup master password
+    const setupRes = await fetch(`${baseUrl}/api/passwords/vault/setup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ masterPassword: 'MySecureMasterPassword123!' })
+    });
+    assert.equal(setupRes.status, 200);
+    const setupData = await setupRes.json();
+    assert.equal(setupData.isConfigured, true);
+    assert.equal(setupData.isUnlocked, true);
+
+    // 3. Verify disk file has encrypted passwords (enc:aes256:...)
+    await new Promise(r => setTimeout(r, 150));
+    const rawDisk = JSON.parse(fs.readFileSync(testDataFile, 'utf-8'));
+    assert.equal(rawDisk.vault.isConfigured, true);
+    assert.ok(rawDisk.vault.salt);
+    assert.ok(rawDisk.vault.testHash);
+    for (const p of rawDisk.passwords) {
+      if (p.password) {
+        assert.ok(p.password.startsWith('enc:aes256:'), `Expected ${p.password} to start with enc:aes256:`);
+      }
+    }
+
+    // 4. Lock vault
+    const lockRes = await fetch(`${baseUrl}/api/passwords/vault/lock`, { method: 'POST' });
+    assert.equal(lockRes.status, 200);
+
+    // 5. When locked, GET /api/passwords does NOT expose plaintext passwords
+    const lockedGet = await (await fetch(`${baseUrl}/api/passwords`)).json();
+    for (const p of lockedGet) {
+      assert.equal(p.password, '', 'Locked vault must return empty passwords');
+      assert.equal(p.isLocked, true);
+    }
+
+    // 6. Unlock with incorrect password fails with 401
+    const wrongRes = await fetch(`${baseUrl}/api/passwords/vault/unlock`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ masterPassword: 'WrongPassword!' })
+    });
+    assert.equal(wrongRes.status, 401);
+
+    // 7. Unlock with correct password succeeds
+    const unlockRes = await fetch(`${baseUrl}/api/passwords/vault/unlock`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ masterPassword: 'MySecureMasterPassword123!' })
+    });
+    assert.equal(unlockRes.status, 200);
+
+    // 8. When unlocked, GET returns decrypted passwords
+    const unlockedGet = await (await fetch(`${baseUrl}/api/passwords`)).json();
+    const google = unlockedGet.find(p => p.title === 'Google');
+    assert.ok(google);
+    assert.equal(google.password, 'GooglePassword#2026');
+  });
 });

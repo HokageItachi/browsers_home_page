@@ -216,7 +216,7 @@ function chromiumTimeToJs(dateCreated) {
 // ── Scanner factory ─────────────────────────────────────────────────────────
 
 function createPasswordScanner(options) {
-  const { getState, saveState, broadcast, intervalMs = 60000 } = options;
+  const { getState, saveState, broadcast, intervalMs = 60000, encryptPassword } = options;
   let timer = null;
 
   function scan() {
@@ -269,7 +269,7 @@ function createPasswordScanner(options) {
               title,
               url,
               username,
-              password: decryptedPwd,
+              password: encryptPassword ? encryptPassword(decryptedPwd) : decryptedPwd,
               category,
               group: `${browser.name} — ${profile.displayName}`,
               browserSource: browser.name,

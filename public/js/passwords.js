@@ -70,6 +70,10 @@ let genLength, genLengthVal, genUpper, genLower, genNumbers, genSymbols, genExcl
 let genRefreshBtn, genUseBtn, closeGeneratorModal;
 let addPasswordBtn, addCategoryBtn, openGeneratorBtn, syncProfilesBtn, importBtn, importFileInput, exportBtn, themeToggleBtn;
 let emptyAddBtn, emptySyncBtn, crumbRoot;
+let vaultStatusBtn, vaultLockIcon, vaultStatusLabel;
+let vaultSetupModal, vaultSetupForm, masterPwdInput, confirmMasterPwdInput, closeVaultSetupModal, cancelVaultSetupModal;
+let vaultUnlockModal, vaultUnlockForm, unlockPwdInput, closeVaultUnlockModal, cancelVaultUnlockModal;
+let vaultState = { isConfigured: false, isUnlocked: true };
 
 function initDOMElements() {
   pmSearch = document.getElementById('pmSearch');
@@ -151,6 +155,24 @@ function initDOMElements() {
   importFileInput = document.getElementById('importFileInput');
   exportBtn = document.getElementById('exportBtn');
   themeToggleBtn = document.getElementById('themeToggleBtn');
+
+  // Vault Controls & Modals
+  vaultStatusBtn = document.getElementById('vaultStatusBtn');
+  vaultLockIcon = document.getElementById('vaultLockIcon');
+  vaultStatusLabel = document.getElementById('vaultStatusLabel');
+
+  vaultSetupModal = document.getElementById('vaultSetupModal');
+  vaultSetupForm = document.getElementById('vaultSetupForm');
+  masterPwdInput = document.getElementById('masterPwdInput');
+  confirmMasterPwdInput = document.getElementById('confirmMasterPwdInput');
+  closeVaultSetupModal = document.getElementById('closeVaultSetupModal');
+  cancelVaultSetupModal = document.getElementById('cancelVaultSetupModal');
+
+  vaultUnlockModal = document.getElementById('vaultUnlockModal');
+  vaultUnlockForm = document.getElementById('vaultUnlockForm');
+  unlockPwdInput = document.getElementById('unlockPwdInput');
+  closeVaultUnlockModal = document.getElementById('closeVaultUnlockModal');
+  cancelVaultUnlockModal = document.getElementById('cancelVaultUnlockModal');
 }
 
 // ── API ─────────────────────────────────────────────────────────────────────
@@ -185,6 +207,15 @@ function setupSSE() {
       const { passwords: updated } = JSON.parse(e.data);
       passwords = updated || [];
       renderAll();
+    } catch (err) { console.error(err); }
+  });
+
+  evtSource.addEventListener('vault_updated', (e) => {
+    try {
+      const data = JSON.parse(e.data);
+      vaultState = data;
+      updateVaultUI();
+      reloadPasswords();
     } catch (err) { console.error(err); }
   });
 
@@ -252,7 +283,8 @@ function formatRelativeTime(timestamp) {
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
-function maskPassword(pwd) {
+function maskPassword(pwd, isLocked = false) {
+  if (isLocked) return '🔒 Locked';
   if (!pwd) return '—';
   return '•'.repeat(Math.min(Math.max(pwd.length, 8), 14));
 }
@@ -624,7 +656,7 @@ function renderGridView(items) {
     const strength = analyzeStrength(pw.password);
     const relTime = formatRelativeTime(pw.updatedAt || pw.createdAt);
     const isRevealed = revealedPasswords.has(pw.id);
-    const displayPwd = isRevealed ? escapeHtml(pw.password || '(none)') : maskPassword(pw.password);
+    const displayPwd = pw.isLocked ? '🔒 Locked' : (isRevealed ? escapeHtml(pw.password || '(none)') : maskPassword(pw.password));
 
     const card = document.createElement('div');
     card.className = 'pm-card';
@@ -745,7 +777,7 @@ function renderCompactView(items) {
     const faviconUrl = domain ? `https://www.google.com/s2/favicons?sz=64&domain=${domain}` : '';
     const initial = (pw.title || domain || 'P')[0].toUpperCase();
     const isRevealed = revealedPasswords.has(pw.id);
-    const displayPwd = isRevealed ? escapeHtml(pw.password || '(none)') : maskPassword(pw.password);
+    const displayPwd = pw.isLocked ? '🔒 Locked' : (isRevealed ? escapeHtml(pw.password || '(none)') : maskPassword(pw.password));
 
     const row = document.createElement('div');
     row.className = 'pm-compact-row';
@@ -849,6 +881,10 @@ function attachCardHandlers(el, pw) {
   if (revealBtn) {
     revealBtn.addEventListener('click', (e) => {
       e.stopPropagation();
+      if (pw.isLocked) {
+        openVaultUnlockModal();
+        return;
+      }
       if (revealedPasswords.has(pw.id)) {
         revealedPasswords.delete(pw.id);
       } else {
@@ -863,7 +899,15 @@ function attachCardHandlers(el, pw) {
   if (copyPwdBtn) {
     copyPwdBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      navigator.clipboard.writeText(pw.password || '').then(() => {
+      if (pw.isLocked) {
+        openVaultUnlockModal();
+        return;
+      }
+      if (!pw.password) {
+        showToast('No password saved for this entry');
+        return;
+      }
+      navigator.clipboard.writeText(pw.password).then(() => {
         showToast('Password copied to clipboard ✓ (Auto-clears in 30s)');
         setTimeout(() => {
           navigator.clipboard.writeText('').catch(() => {});
@@ -902,6 +946,10 @@ function attachCardHandlers(el, pw) {
   if (editBtn) {
     editBtn.addEventListener('click', (e) => {
       e.stopPropagation();
+      if (pw.isLocked) {
+        openVaultUnlockModal();
+        return;
+      }
       openEditModal(pw);
     });
   }
@@ -938,6 +986,10 @@ function attachCardHandlers(el, pw) {
   // Double click on card row opens Edit Modal
   el.addEventListener('dblclick', (e) => {
     if (e.target.closest('.pm-card-actions') || e.target.closest('.col-actions') || e.target.closest('button')) return;
+    if (pw.isLocked) {
+      openVaultUnlockModal();
+      return;
+    }
     openEditModal(pw);
   });
 }
@@ -1533,6 +1585,148 @@ function setupEventListeners() {
     applyStrengthToBar(formStrengthBar, formStrengthLabel, s);
     showToast('Password inserted into form ✓');
   });
+
+  // Vault Security Listeners
+  vaultStatusBtn?.addEventListener('click', handleVaultBtnClick);
+
+  closeVaultSetupModal?.addEventListener('click', () => closeModal(vaultSetupModal));
+  cancelVaultSetupModal?.addEventListener('click', () => closeModal(vaultSetupModal));
+  vaultSetupModal?.addEventListener('click', (e) => {
+    if (e.target === vaultSetupModal) closeModal(vaultSetupModal);
+  });
+  vaultSetupForm?.addEventListener('submit', handleVaultSetupSubmit);
+
+  closeVaultUnlockModal?.addEventListener('click', () => closeModal(vaultUnlockModal));
+  cancelVaultUnlockModal?.addEventListener('click', () => closeModal(vaultUnlockModal));
+  vaultUnlockModal?.addEventListener('click', (e) => {
+    if (e.target === vaultUnlockModal) closeModal(vaultUnlockModal);
+  });
+  vaultUnlockForm?.addEventListener('submit', handleVaultUnlockSubmit);
+}
+
+// ── Vault Controller ────────────────────────────────────────────────────────
+
+async function checkVaultStatus() {
+  try {
+    const status = await apiRequest('/api/passwords/vault/status');
+    vaultState = status;
+    updateVaultUI();
+    if (vaultState.isConfigured && !vaultState.isUnlocked) {
+      openVaultUnlockModal();
+    }
+  } catch (err) {
+    console.error('Failed to get vault status:', err);
+  }
+}
+
+function updateVaultUI() {
+  if (!vaultStatusBtn) return;
+  if (!vaultState.isConfigured) {
+    vaultStatusBtn.className = 'pm-pill-btn pm-vault-btn';
+    if (vaultStatusLabel) vaultStatusLabel.textContent = 'Set Master Password';
+    if (vaultLockIcon) {
+      vaultLockIcon.innerHTML = '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path>';
+    }
+  } else if (!vaultState.isUnlocked) {
+    vaultStatusBtn.className = 'pm-pill-btn pm-vault-btn locked';
+    if (vaultStatusLabel) vaultStatusLabel.textContent = 'Unlock Vault';
+    if (vaultLockIcon) {
+      vaultLockIcon.innerHTML = '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path>';
+    }
+  } else {
+    vaultStatusBtn.className = 'pm-pill-btn pm-vault-btn unlocked';
+    if (vaultStatusLabel) vaultStatusLabel.textContent = 'Lock Vault';
+    if (vaultLockIcon) {
+      vaultLockIcon.innerHTML = '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path>';
+    }
+  }
+}
+
+async function handleVaultBtnClick() {
+  if (!vaultState.isConfigured) {
+    openVaultSetupModal();
+  } else if (!vaultState.isUnlocked) {
+    openVaultUnlockModal();
+  } else {
+    // Unlocked -> user clicked to Lock
+    try {
+      await apiRequest('/api/passwords/vault/lock', 'POST');
+      vaultState.isUnlocked = false;
+      updateVaultUI();
+      showToast('Vault Locked 🔒');
+      reloadPasswords();
+    } catch (err) {
+      showToast('Failed to lock vault');
+    }
+  }
+}
+
+function openVaultSetupModal() {
+  if (masterPwdInput) masterPwdInput.value = '';
+  if (confirmMasterPwdInput) confirmMasterPwdInput.value = '';
+  openModal(vaultSetupModal);
+}
+
+function openVaultUnlockModal() {
+  if (unlockPwdInput) unlockPwdInput.value = '';
+  openModal(vaultUnlockModal);
+}
+
+async function handleVaultSetupSubmit(e) {
+  e.preventDefault();
+  const pwd = masterPwdInput.value;
+  const conf = confirmMasterPwdInput.value;
+  if (pwd !== conf) {
+    showToast('Passwords do not match! ❌');
+    return;
+  }
+  if (pwd.length < 6) {
+    showToast('Master password must be at least 6 characters');
+    return;
+  }
+
+  try {
+    showToast('Encrypting vault with AES-256-GCM...');
+    const res = await apiRequest('/api/passwords/vault/setup', 'POST', { masterPassword: pwd });
+    if (res.success) {
+      closeModal(vaultSetupModal);
+      vaultState = { isConfigured: true, isUnlocked: true };
+      updateVaultUI();
+      showToast('Vault Encrypted & Protected! 🔐✓');
+      reloadPasswords();
+    }
+  } catch (err) {
+    showToast(`Setup failed: ${err.message}`);
+  }
+}
+
+async function handleVaultUnlockSubmit(e) {
+  e.preventDefault();
+  const pwd = unlockPwdInput.value;
+  if (!pwd) return;
+
+  try {
+    const res = await apiRequest('/api/passwords/vault/unlock', 'POST', { masterPassword: pwd });
+    if (res.success) {
+      closeModal(vaultUnlockModal);
+      vaultState.isUnlocked = true;
+      updateVaultUI();
+      showToast('Vault Unlocked! 🔓✓');
+      reloadPasswords();
+    }
+  } catch (err) {
+    showToast('Incorrect Master Password ❌');
+  }
+}
+
+async function reloadPasswords() {
+  try {
+    const updated = await apiRequest('/api/passwords');
+    passwords = updated || [];
+    renderAll();
+  } catch (err) {
+    console.error('Failed to reload passwords:', err);
+  }
 }
 
 // ── Initialization ──────────────────────────────────────────────────────────
@@ -1541,4 +1735,5 @@ document.addEventListener('DOMContentLoaded', () => {
   initDOMElements();
   setupEventListeners();
   setupSSE();
+  checkVaultStatus();
 });
