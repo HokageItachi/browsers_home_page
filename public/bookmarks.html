@@ -17,70 +17,25 @@
   <div class="glow-orb orb-2"></div>
 
   <div class="bm-app">
-    <!-- Top Bar -->
+    <!-- Header (Two-Tier Double Row) -->
     <header class="bm-header">
-      <div class="bm-header-left">
-        <a href="/" class="bm-back-btn" title="Back to Dashboard">
-          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2.2" fill="none">
-            <polyline points="15 18 9 12 15 6"></polyline>
-          </svg>
-        </a>
-        <div class="bm-title-group">
-          <div class="bm-title-icon-box">
-            <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none">
-              <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
-            </svg>
-          </div>
-          <div class="bm-title-text-wrap">
-            <h1 class="bm-page-title">Bookmarks Library</h1>
-            <span class="bm-count-pill" id="totalCount">Loading bookmarks...</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="bm-header-right">
-        <!-- Search bar -->
-        <div class="bm-search-wrap">
-          <svg class="bm-search-icon" viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none">
-            <circle cx="11" cy="11" r="8"></circle>
-            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-          </svg>
-          <input type="text" id="bmSearch" class="bm-search-input" placeholder="Search by title, url, folder, profile... (Ctrl+K)" autocomplete="off" />
-          <button type="button" class="bm-search-clear" id="bmSearchClear" title="Clear search" style="display: none;">&times;</button>
-          <span class="bm-search-kbd">Ctrl K</span>
+      <!-- Tier 1: Global Identity & Navigation Bar -->
+      <div class="bm-nav-bar">
+        <div class="bm-nav-left">
+          <a href="/" class="bm-brand-link" title="Back to Dashboard Home">
+            <div class="bm-title-icon-box">
+              <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none">
+                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+              </svg>
+            </div>
+            <div class="bm-title-text-wrap">
+              <h1 class="bm-page-title">Bookmarks Library</h1>
+              <span class="bm-count-pill" id="totalCount">Loading bookmarks...</span>
+            </div>
+          </a>
         </div>
 
-        <!-- View Mode Switcher -->
-        <div class="bm-view-toggle">
-          <button class="bm-view-btn active" data-view="grid" title="Cards View (Spacious)">
-            <svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" stroke-width="2" fill="none">
-              <rect x="3" y="3" width="7" height="7" rx="1.5"></rect>
-              <rect x="14" y="3" width="7" height="7" rx="1.5"></rect>
-              <rect x="3" y="14" width="7" height="7" rx="1.5"></rect>
-              <rect x="14" y="14" width="7" height="7" rx="1.5"></rect>
-            </svg>
-          </button>
-          <button class="bm-view-btn" data-view="list" title="Detailed List View">
-            <svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" stroke-width="2" fill="none">
-              <line x1="8" y1="6" x2="21" y2="6"></line>
-              <line x1="8" y1="12" x2="21" y2="12"></line>
-              <line x1="8" y1="18" x2="21" y2="18"></line>
-              <line x1="3" y1="6" x2="3.01" y2="6"></line>
-              <line x1="3" y1="12" x2="3.01" y2="12"></line>
-              <line x1="3" y1="18" x2="3.01" y2="18"></line>
-            </svg>
-          </button>
-          <button class="bm-view-btn" data-view="compact" title="Compact Table View">
-            <svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" stroke-width="2" fill="none">
-              <line x1="3" y1="5" x2="21" y2="5"></line>
-              <line x1="3" y1="10" x2="21" y2="10"></line>
-              <line x1="3" y1="15" x2="21" y2="15"></line>
-              <line x1="3" y1="20" x2="21" y2="20"></line>
-            </svg>
-          </button>
-        </div>
-
-        <!-- Unified App Navigation -->
+        <!-- Center: Unified App Navigation Switcher -->
         <nav class="app-nav-group" aria-label="Main Navigation">
           <a href="/" class="nav-pill-btn" title="Go to Dashboard Home">
             <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none">
@@ -104,32 +59,82 @@
           </a>
         </nav>
 
-        <!-- Theme Toggle -->
-        <button class="icon-btn theme-toggle" id="themeToggleBtn" title="Toggle Light/Dark Theme">
-          <svg class="sun-icon" viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none">
-            <circle cx="12" cy="12" r="5"></circle>
-            <line x1="12" y1="1" x2="12" y2="3"></line>
-            <line x1="12" y1="21" x2="12" y2="23"></line>
-            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-            <line x1="1" y1="12" x2="3" y2="12"></line>
-            <line x1="21" y1="12" x2="23" y2="12"></line>
-            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-          </svg>
-          <svg class="moon-icon" viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none">
-            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-          </svg>
-        </button>
+        <!-- Right: Theme Toggle -->
+        <div class="bm-nav-right">
+          <button class="icon-btn theme-toggle" id="themeToggleBtn" title="Toggle Light/Dark Theme">
+            <svg class="sun-icon" viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none">
+              <circle cx="12" cy="12" r="5"></circle>
+              <line x1="12" y1="1" x2="12" y2="3"></line>
+              <line x1="12" y1="21" x2="12" y2="23"></line>
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+              <line x1="1" y1="12" x2="3" y2="12"></line>
+              <line x1="21" y1="12" x2="23" y2="12"></line>
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+            </svg>
+            <svg class="moon-icon" viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
 
-        <!-- Add Bookmark Button -->
-        <button class="bm-add-btn" id="addBookmarkBtn">
-          <svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" stroke-width="2.5" fill="none">
-            <line x1="12" y1="5" x2="12" y2="19"></line>
-            <line x1="5" y1="12" x2="19" y2="12"></line>
-          </svg>
-          <span>Add Bookmark</span>
-        </button>
+      <!-- Tier 2: Action & Filter Toolbar -->
+      <div class="bm-toolbar">
+        <div class="bm-toolbar-left">
+          <!-- Search bar -->
+          <div class="bm-search-wrap">
+            <svg class="bm-search-icon" viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="text" id="bmSearch" class="bm-search-input" placeholder="Search by title, url, folder, profile... (Ctrl+K)" autocomplete="off" />
+            <button type="button" class="bm-search-clear" id="bmSearchClear" title="Clear search" style="display: none;">&times;</button>
+            <span class="bm-search-kbd">Ctrl K</span>
+          </div>
+
+          <!-- View Mode Switcher -->
+          <div class="bm-view-toggle">
+            <button class="bm-view-btn active" data-view="grid" title="Cards View (Spacious)">
+              <svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" stroke-width="2" fill="none">
+                <rect x="3" y="3" width="7" height="7" rx="1.5"></rect>
+                <rect x="14" y="3" width="7" height="7" rx="1.5"></rect>
+                <rect x="3" y="14" width="7" height="7" rx="1.5"></rect>
+                <rect x="14" y="14" width="7" height="7" rx="1.5"></rect>
+              </svg>
+            </button>
+            <button class="bm-view-btn" data-view="list" title="Detailed List View">
+              <svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" stroke-width="2" fill="none">
+                <line x1="8" y1="6" x2="21" y2="6"></line>
+                <line x1="8" y1="12" x2="21" y2="12"></line>
+                <line x1="8" y1="18" x2="21" y2="18"></line>
+                <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                <line x1="3" y1="18" x2="3.01" y2="18"></line>
+              </svg>
+            </button>
+            <button class="bm-view-btn" data-view="compact" title="Compact Table View">
+              <svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" stroke-width="2" fill="none">
+                <line x1="3" y1="5" x2="21" y2="5"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+                <line x1="3" y1="15" x2="21" y2="15"></line>
+                <line x1="3" y1="20" x2="21" y2="20"></line>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="bm-toolbar-right">
+          <!-- Add Bookmark Button -->
+          <button class="bm-add-btn" id="addBookmarkBtn">
+            <svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" stroke-width="2.5" fill="none">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            <span>Add Bookmark</span>
+          </button>
+        </div>
       </div>
     </header>
 
