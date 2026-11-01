@@ -68,7 +68,7 @@ let renameCatModal, renameCatForm, renameCatInput, closeRenameCatModal, cancelRe
 let generatorModal, genPwdOutput, genCopyBtn, genStrengthBar, genStrengthLabel;
 let genLength, genLengthVal, genUpper, genLower, genNumbers, genSymbols, genExcludeAmbiguous;
 let genRefreshBtn, genUseBtn, closeGeneratorModal;
-let addPasswordBtn, addCategoryBtn, openGeneratorBtn, syncProfilesBtn, exportBtn, themeToggleBtn;
+let addPasswordBtn, addCategoryBtn, openGeneratorBtn, syncProfilesBtn, importBtn, importFileInput, exportBtn, themeToggleBtn;
 let emptyAddBtn, emptySyncBtn, crumbRoot;
 
 function initDOMElements() {
@@ -147,6 +147,8 @@ function initDOMElements() {
   addCategoryBtn = document.getElementById('addCategoryBtn');
   openGeneratorBtn = document.getElementById('openGeneratorBtn');
   syncProfilesBtn = document.getElementById('syncProfilesBtn');
+  importBtn = document.getElementById('importBtn');
+  importFileInput = document.getElementById('importFileInput');
   exportBtn = document.getElementById('exportBtn');
   themeToggleBtn = document.getElementById('themeToggleBtn');
 }
@@ -1128,6 +1130,118 @@ async function handleFetchProfiles() {
   }
 }
 
+// ── Import (CSV / JSON) ─────────────────────────────────────────────────────
+
+function parseCSV(text) {
+  const rows = [];
+  let currentRow = [];
+  let currentVal = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    const next = text[i + 1];
+
+    if (c === '"') {
+      if (inQuotes && next === '"') {
+        currentVal += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (c === ',' && !inQuotes) {
+      currentRow.push(currentVal.trim());
+      currentVal = '';
+    } else if ((c === '\r' || c === '\n') && !inQuotes) {
+      if (c === '\r' && next === '\n') i++;
+      currentRow.push(currentVal.trim());
+      currentVal = '';
+      if (currentRow.some(v => v.length > 0)) {
+        rows.push(currentRow);
+      }
+      currentRow = [];
+    } else {
+      currentVal += c;
+    }
+  }
+
+  if (currentVal || currentRow.length > 0) {
+    currentRow.push(currentVal.trim());
+    if (currentRow.some(v => v.length > 0)) {
+      rows.push(currentRow);
+    }
+  }
+  return rows;
+}
+
+function parseBrowserCSV(rows) {
+  if (!rows || rows.length < 2) return [];
+
+  // Header matching
+  const headers = rows[0].map(h => (h || '').toLowerCase().replace(/[^a-z0-9]/g, ''));
+  const nameIdx = headers.findIndex(h => h === 'name' || h === 'title' || h === 'sitename');
+  const urlIdx = headers.findIndex(h => h === 'url' || h === 'loginurl' || h === 'originurl');
+  const userIdx = headers.findIndex(h => h === 'username' || h === 'user' || h === 'login' || h === 'email');
+  const pwdIdx = headers.findIndex(h => h === 'password' || h === 'pass' || h === 'pwd');
+  const noteIdx = headers.findIndex(h => h === 'note' || h === 'notes' || h === 'comment');
+
+  const items = [];
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    const url = urlIdx !== -1 ? row[urlIdx] : '';
+    const username = userIdx !== -1 ? row[userIdx] : '';
+    const password = pwdIdx !== -1 ? row[pwdIdx] : '';
+    const title = (nameIdx !== -1 ? row[nameIdx] : '') || (url ? url.replace(/^https?:\/\//, '').split('/')[0] : 'Saved Login');
+    const notes = noteIdx !== -1 ? row[noteIdx] : '';
+
+    if (!url && !username && !password) continue;
+    items.push({ title, url, username, password, notes, browserSource: 'Imported' });
+  }
+  return items;
+}
+
+async function handleFileSelected(e) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  try {
+    showToast(`Reading ${file.name}...`);
+    const text = await file.text();
+    let items = [];
+
+    if (file.name.endsWith('.json') || file.type.includes('json')) {
+      const parsed = JSON.parse(text);
+      items = Array.isArray(parsed) ? parsed : (parsed.passwords || []);
+    } else {
+      // CSV
+      const rows = parseCSV(text);
+      items = parseBrowserCSV(rows);
+    }
+
+    if (items.length === 0) {
+      showToast('No valid login entries found in file.');
+      return;
+    }
+
+    showToast(`Importing ${items.length} credentials...`);
+    const res = await apiRequest('/api/passwords/import', 'POST', items);
+
+    if (res.success) {
+      showToast(`Successfully imported/updated ${res.importedCount} passwords! ✓`);
+      const updated = await apiRequest('/api/passwords');
+      passwords = updated || [];
+      renderAll();
+    } else {
+      showToast('Failed to import credentials.');
+    }
+  } catch (err) {
+    console.error('Import error:', err);
+    showToast(`Import failed: ${err.message}`);
+  } finally {
+    if (importFileInput) importFileInput.value = '';
+  }
+}
+
 // ── Export ──────────────────────────────────────────────────────────────────
 
 function handleExport() {
@@ -1152,6 +1266,8 @@ function setupEventListeners() {
   emptyAddBtn?.addEventListener('click', openAddModal);
   syncProfilesBtn?.addEventListener('click', handleFetchProfiles);
   emptySyncBtn?.addEventListener('click', handleFetchProfiles);
+  importBtn?.addEventListener('click', () => importFileInput?.click());
+  importFileInput?.addEventListener('change', handleFileSelected);
   exportBtn?.addEventListener('click', handleExport);
   themeToggleBtn?.addEventListener('click', toggleTheme);
 

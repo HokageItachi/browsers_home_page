@@ -480,23 +480,52 @@ function createApp(options = {}) {
           const body = await parseRequestBody(req);
           const items = Array.isArray(body) ? body : (body.passwords || []);
           let count = 0;
+
+          // Helper to normalize URL for matching
+          function normUrl(u) {
+            return (u || '').toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/+$/, '');
+          }
+
           for (const item of items) {
-            if (!item.title && !item.url && !item.username) continue;
-            const newEntry = {
-              id: "pw-" + Date.now() + "-" + Math.random().toString(36).substr(2, 4),
-              title: item.title || item.name || "Untitled",
-              url: item.url || "",
-              username: item.username || item.login || "",
-              password: item.password || "",
-              category: item.category || "General",
-              notes: item.notes || "",
-              tags: Array.isArray(item.tags) ? item.tags : [],
-              starred: !!item.starred,
-              createdAt: item.createdAt || Date.now(),
-              updatedAt: item.updatedAt || Date.now(),
-            };
-            state.passwords.unshift(newEntry);
-            count++;
+            const itemUrl = item.url || '';
+            const itemUser = (item.username || item.login || '').trim();
+            const itemPwd = item.password || '';
+            const itemTitle = item.title || item.name || '';
+
+            if (!itemTitle && !itemUrl && !itemUser) continue;
+
+            const nUrl = normUrl(itemUrl);
+            const existing = nUrl ? state.passwords.find(p => normUrl(p.url) === nUrl && (p.username || '').trim().toLowerCase() === itemUser.toLowerCase()) : null;
+
+            if (existing) {
+              if (itemPwd) existing.password = itemPwd;
+              if (itemTitle && (!existing.title || existing.title === 'Saved Login' || existing.title === 'Untitled')) {
+                existing.title = itemTitle;
+              }
+              if (item.notes) existing.notes = item.notes;
+              if (item.category && (!existing.category || existing.category === 'General')) {
+                existing.category = item.category;
+              }
+              existing.updatedAt = Date.now();
+              count++;
+            } else {
+              const newEntry = {
+                id: "pw-" + Date.now() + "-" + Math.random().toString(36).substr(2, 4),
+                title: itemTitle || "Untitled",
+                url: itemUrl,
+                username: itemUser,
+                password: itemPwd,
+                category: item.category || "General",
+                notes: item.notes || "",
+                tags: Array.isArray(item.tags) ? item.tags : (item.browser ? [item.browser] : []),
+                starred: !!item.starred,
+                browserSource: item.browserSource || item.browser || "Imported",
+                createdAt: item.createdAt || Date.now(),
+                updatedAt: item.updatedAt || Date.now(),
+              };
+              state.passwords.unshift(newEntry);
+              count++;
+            }
           }
           saveState();
           broadcast("passwords_updated", { passwords: state.passwords }, clientId);
