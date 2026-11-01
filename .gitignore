@@ -3,6 +3,7 @@ node_modules/
 package-lock.json
 
 # Local storage backup & sensitive user data
+data/storage.json
 data/storage.local.json
 
 # Logs

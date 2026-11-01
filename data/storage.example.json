@@ -1,0 +1,13 @@
+{
+  "settings": {
+    "theme": "dark",
+    "userName": "Explorer",
+    "activeSearchEngine": "google",
+    "sortByVisits": true
+  },
+  "sites": [],
+  "todos": [],
+  "notes": [],
+  "bookmarks": [],
+  "passwords": []
+}

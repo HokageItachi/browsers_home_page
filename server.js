@@ -33,6 +33,17 @@ function createApp(options = {}) {
   const sseClients = new Set();
   let saveTimeout = null;
   let heartbeatInterval = null;
+  let passwordScanner = null;
+
+  try {
+    const { createPasswordScanner } = require('./password-scanner');
+    passwordScanner = createPasswordScanner({
+      getState: () => state,
+      saveState: saveStateSync,
+      broadcast: (type, payload, origId) => broadcast(type, payload, origId),
+      intervalMs: 60000,
+    });
+  } catch (_e) {}
 
   // Load state from disk
   function loadState() {
@@ -40,6 +51,8 @@ function createApp(options = {}) {
       if (fs.existsSync(dataFile)) {
         const raw = fs.readFileSync(dataFile, "utf-8");
         state = JSON.parse(raw);
+        if (!Array.isArray(state.passwords)) state.passwords = [];
+        if (!Array.isArray(state.bookmarks)) state.bookmarks = [];
       } else {
         state = {
           settings: {
@@ -52,12 +65,13 @@ function createApp(options = {}) {
           todos: [],
           notes: [],
           bookmarks: [],
+          passwords: [],
         };
         saveStateSync();
       }
     } catch (err) {
       console.error("Error loading state:", err);
-      state = { settings: {}, sites: [], todos: [], notes: [], bookmarks: [] };
+      state = { settings: {}, sites: [], todos: [], notes: [], bookmarks: [], passwords: [] };
     }
   }
 
@@ -444,6 +458,164 @@ function createApp(options = {}) {
           return sendJSON(res, 200, { success: true });
         }
 
+        // Passwords - Get All
+        if (pathname === "/api/passwords" && req.method === "GET") {
+          if (!state.passwords) state.passwords = [];
+          return sendJSON(res, 200, state.passwords);
+        }
+
+        // Passwords - Sync from Browser Profiles on Demand
+        if (pathname === "/api/passwords/sync" && req.method === "POST") {
+          if (!state.passwords) state.passwords = [];
+          let result = { addedCount: 0, totalCount: state.passwords.length };
+          if (passwordScanner) {
+            result = passwordScanner.scan();
+          }
+          return sendJSON(res, 200, { success: true, ...result });
+        }
+
+        // Passwords - Import from JSON or CSV
+        if (pathname === "/api/passwords/import" && req.method === "POST") {
+          if (!state.passwords) state.passwords = [];
+          const body = await parseRequestBody(req);
+          const items = Array.isArray(body) ? body : (body.passwords || []);
+          let count = 0;
+          for (const item of items) {
+            if (!item.title && !item.url && !item.username) continue;
+            const newEntry = {
+              id: "pw-" + Date.now() + "-" + Math.random().toString(36).substr(2, 4),
+              title: item.title || item.name || "Untitled",
+              url: item.url || "",
+              username: item.username || item.login || "",
+              password: item.password || "",
+              category: item.category || "General",
+              notes: item.notes || "",
+              tags: Array.isArray(item.tags) ? item.tags : [],
+              starred: !!item.starred,
+              createdAt: item.createdAt || Date.now(),
+              updatedAt: item.updatedAt || Date.now(),
+            };
+            state.passwords.unshift(newEntry);
+            count++;
+          }
+          saveState();
+          broadcast("passwords_updated", { passwords: state.passwords }, clientId);
+          return sendJSON(res, 200, { success: true, importedCount: count, totalCount: state.passwords.length });
+        }
+
+        // Passwords - Categories Rename
+        if (
+          pathname === "/api/passwords/categories/rename" &&
+          req.method === "PUT"
+        ) {
+          if (!state.passwords) state.passwords = [];
+          const body = await parseRequestBody(req);
+          const { oldName, newName } = body;
+          if (!oldName || !newName) {
+            return sendJSON(res, 400, {
+              error: "oldName and newName are required",
+            });
+          }
+          state.passwords.forEach((pw) => {
+            if ((pw.category || "General") === oldName) pw.category = newName;
+          });
+          saveState();
+          broadcast(
+            "passwords_updated",
+            { passwords: state.passwords },
+            clientId,
+          );
+          return sendJSON(res, 200, { success: true });
+        }
+
+        // Passwords - Categories Delete
+        const catDeleteMatch = pathname.match(
+          /^\/api\/passwords\/categories\/(.+)$/,
+        );
+        if (catDeleteMatch && req.method === "DELETE") {
+          if (!state.passwords) state.passwords = [];
+          const catName = decodeURIComponent(catDeleteMatch[1]);
+          state.passwords = state.passwords.filter(
+            (pw) => (pw.category || "General") !== catName,
+          );
+          saveState();
+          broadcast(
+            "passwords_updated",
+            { passwords: state.passwords },
+            clientId,
+          );
+          return sendJSON(res, 200, { success: true });
+        }
+
+        // Passwords - Add
+        if (pathname === "/api/passwords" && req.method === "POST") {
+          if (!state.passwords) state.passwords = [];
+          const body = await parseRequestBody(req);
+          const newEntry = {
+            id:
+              "pw-" +
+              Date.now() +
+              "-" +
+              Math.random().toString(36).substr(2, 4),
+            title: body.title || "Untitled",
+            url: body.url || "",
+            username: body.username || "",
+            password: body.password || "",
+            category: body.category || "General",
+            notes: body.notes || "",
+            tags: Array.isArray(body.tags) ? body.tags : [],
+            starred: !!body.starred,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+          };
+          state.passwords.unshift(newEntry);
+          saveState();
+          broadcast(
+            "passwords_updated",
+            { passwords: state.passwords },
+            clientId,
+          );
+          return sendJSON(res, 201, newEntry);
+        }
+
+        // Passwords - Update / Delete by ID
+        const passwordMatch = pathname.match(/^\/api\/passwords\/([^/]+)$/);
+        if (passwordMatch && req.method === "PUT") {
+          if (!state.passwords) state.passwords = [];
+          const pwId = passwordMatch[1];
+          const body = await parseRequestBody(req);
+          const index = state.passwords.findIndex((p) => p.id === pwId);
+          if (index !== -1) {
+            state.passwords[index] = {
+              ...state.passwords[index],
+              ...body,
+              id: pwId,
+              updatedAt: Date.now(),
+            };
+            saveState();
+            broadcast(
+              "passwords_updated",
+              { passwords: state.passwords },
+              clientId,
+            );
+            return sendJSON(res, 200, state.passwords[index]);
+          }
+          return sendJSON(res, 404, { error: "Password not found" });
+        }
+
+        if (passwordMatch && req.method === "DELETE") {
+          if (!state.passwords) state.passwords = [];
+          const pwId = passwordMatch[1];
+          state.passwords = state.passwords.filter((p) => p.id !== pwId);
+          saveState();
+          broadcast(
+            "passwords_updated",
+            { passwords: state.passwords },
+            clientId,
+          );
+          return sendJSON(res, 200, { success: true });
+        }
+
         return sendJSON(res, 404, { error: "API route not found" });
       } catch (err) {
         console.error("API Error:", err);
@@ -525,6 +697,7 @@ function createApp(options = {}) {
   // Stop helper
   function stop() {
     return new Promise((resolve) => {
+      if (passwordScanner) passwordScanner.stop();
       clearInterval(heartbeatInterval);
       clearTimeout(saveTimeout);
       saveStateSync();
@@ -546,6 +719,7 @@ function createApp(options = {}) {
     saveStateSync,
     broadcast,
     sseClients,
+    passwordScanner,
   };
 }
 
@@ -559,6 +733,7 @@ if (require.main === module) {
     console.log(`  🔗 Open URL: http://localhost:${port}                 `);
     console.log(`  ⚡ Real-Time SSE Sync active across all browsers     `);
     console.log(`  🔖 Bookmark auto-import scanning every 30 seconds    `);
+    console.log(`  🔐 Password auto-import scanning every 60 seconds    `);
     console.log(`=======================================================`);
 
     // Start bookmark auto-scanner
@@ -570,14 +745,21 @@ if (require.main === module) {
     });
     scanner.start();
 
+    // Start password auto-scanner
+    if (app.passwordScanner) {
+      app.passwordScanner.start();
+    }
+
     // Graceful shutdown
     process.on('SIGINT', async () => {
       scanner.stop();
+      if (app.passwordScanner) app.passwordScanner.stop();
       await app.stop();
       process.exit(0);
     });
     process.on('SIGTERM', async () => {
       scanner.stop();
+      if (app.passwordScanner) app.passwordScanner.stop();
       await app.stop();
       process.exit(0);
     });
