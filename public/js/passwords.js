@@ -229,6 +229,9 @@ function setupSSE() {
     try {
       const data = JSON.parse(e.data);
       vaultState = data;
+      if (!vaultState.isUnlocked) {
+        revealedPasswords.clear();
+      }
       updateVaultUI();
       reloadPasswords();
     } catch (err) { console.error(err); }
@@ -300,14 +303,17 @@ function formatRelativeTime(timestamp) {
 
 function maskPassword(pwd, isLocked = false) {
   if (isLocked) return '🔒 Locked';
-  if (!pwd) return '—';
+  if (!pwd || pwd.trim() === '') return '—';
+  if (typeof pwd === 'string' && pwd.startsWith('enc:')) return '🔒 Locked';
   return '•'.repeat(Math.min(Math.max(pwd.length, 8), 14));
 }
 
 // ── Strength Analysis ───────────────────────────────────────────────────────
 
 function analyzeStrength(pwd) {
-  if (!pwd) return { score: 0, pct: 0, label: 'Empty', level: 'weak', color: '#64748b' };
+  if (!pwd || pwd.trim() === '' || (typeof pwd === 'string' && pwd.startsWith('enc:'))) {
+    return { score: 0, pct: 0, label: 'Empty', level: 'empty', color: '#64748b' };
+  }
 
   let score = 0;
   if (pwd.length >= 8)  score++;
@@ -699,8 +705,9 @@ function renderGridView(items) {
     const initial = (pw.title || domain || 'P')[0].toUpperCase();
     const strength = analyzeStrength(pw.password);
     const relTime = formatRelativeTime(pw.updatedAt || pw.createdAt);
-    const isRevealed = revealedPasswords.has(pw.id);
-    const displayPwd = pw.isLocked ? '🔒 Locked' : (isRevealed ? escapeHtml(pw.password || '(none)') : maskPassword(pw.password));
+    const isLocked = (vaultState.isConfigured && !vaultState.isUnlocked) || !!pw.isLocked;
+    const isRevealed = !isLocked && revealedPasswords.has(pw.id);
+    const displayPwd = isLocked ? '🔒 Locked' : (isRevealed ? escapeHtml(pw.password || '(none)') : maskPassword(pw.password, isLocked));
 
     const card = document.createElement('div');
     card.className = 'pm-card';
@@ -731,12 +738,12 @@ function renderGridView(items) {
       </div>
 
       <div class="pm-card-bottom">
-        <div>
-          <div class="pm-card-pwd-preview" style="font-family:${isRevealed ? 'monospace' : 'inherit'};font-size:${isRevealed ? '0.8rem' : '0.72rem'};color:${isRevealed ? '#10b981' : 'var(--text-dim)'};">${displayPwd}</div>
+        <div class="pm-card-pwd-meta">
+          <div class="pm-card-pwd-preview" style="font-family:${isRevealed ? 'monospace' : 'inherit'};font-size:${isRevealed ? '0.8rem' : '0.72rem'};color:${isLocked ? 'var(--text-dim)' : (isRevealed ? '#10b981' : 'var(--text-dim)')};">${displayPwd}</div>
           <div class="pm-card-date">${relTime ? 'Updated ' + relTime : ''}</div>
         </div>
         <div class="pm-card-actions">
-          ${getCardActionsHtml(isRevealed)}
+          ${getCardActionsHtml(isRevealed, isLocked)}
         </div>
       </div>
     `;
@@ -765,7 +772,8 @@ function renderListView(items) {
     const faviconUrl = domain ? `https://www.google.com/s2/favicons?sz=64&domain=${domain}` : '';
     const initial = (pw.title || domain || 'P')[0].toUpperCase();
     const strength = analyzeStrength(pw.password);
-    const isRevealed = revealedPasswords.has(pw.id);
+    const isLocked = (vaultState.isConfigured && !vaultState.isUnlocked) || !!pw.isLocked;
+    const isRevealed = !isLocked && revealedPasswords.has(pw.id);
 
     const row = document.createElement('div');
     row.className = 'pm-list-row';
@@ -793,7 +801,7 @@ function renderListView(items) {
         <span class="pm-strength-badge ${strength.level}">${strength.label}</span>
       </div>
       <div class="col-actions">
-        ${getCardActionsHtml(isRevealed)}
+        ${getCardActionsHtml(isRevealed, isLocked)}
       </div>
     `;
 
@@ -820,8 +828,9 @@ function renderCompactView(items) {
     const domain = getDomain(pw.url || '');
     const faviconUrl = domain ? `https://www.google.com/s2/favicons?sz=64&domain=${domain}` : '';
     const initial = (pw.title || domain || 'P')[0].toUpperCase();
-    const isRevealed = revealedPasswords.has(pw.id);
-    const displayPwd = pw.isLocked ? '🔒 Locked' : (isRevealed ? escapeHtml(pw.password || '(none)') : maskPassword(pw.password));
+    const isLocked = (vaultState.isConfigured && !vaultState.isUnlocked) || !!pw.isLocked;
+    const isRevealed = !isLocked && revealedPasswords.has(pw.id);
+    const displayPwd = isLocked ? '🔒 Locked' : (isRevealed ? escapeHtml(pw.password || '(none)') : maskPassword(pw.password, isLocked));
 
     const row = document.createElement('div');
     row.className = 'pm-compact-row';
@@ -837,14 +846,14 @@ function renderCompactView(items) {
         ${escapeHtml(pw.title)}
         <span style="font-size:0.72rem;color:var(--text-dim);margin-left:6px;">(${escapeHtml(pw.username || '—')})</span>
       </div>
-      <div class="col-username" style="font-family:monospace;font-size:0.74rem;color:${isRevealed ? '#10b981' : 'var(--text-dim)'};">
+      <div class="col-username" style="font-family:monospace;font-size:0.74rem;color:${isLocked ? 'var(--text-dim)' : (isRevealed ? '#10b981' : 'var(--text-dim)')};">
         ${displayPwd}
       </div>
       <div class="col-category">
         ${getSourceBadgeHtml(pw)}
       </div>
       <div class="col-actions">
-        ${getCardActionsHtml(isRevealed)}
+        ${getCardActionsHtml(isRevealed, isLocked)}
       </div>
     `;
 
@@ -874,16 +883,20 @@ function getSourceBadgeHtml(pw) {
   `;
 }
 
-function getCardActionsHtml(isRevealed) {
+function getCardActionsHtml(isRevealed, isLocked = false) {
+  const revealTitle = isLocked ? 'Vault is Locked (Click to Unlock)' : (isRevealed ? 'Hide Password' : 'Show Password');
+  const copyTitle = isLocked ? 'Vault is Locked (Click to Unlock)' : 'Copy Password';
+  const editTitle = isLocked ? 'Vault is Locked (Click to Unlock)' : 'Edit Entry';
+
   return `
-    <button type="button" class="pm-card-action-btn reveal-btn" title="${isRevealed ? 'Hide Password' : 'Show Password'}">
+    <button type="button" class="pm-card-action-btn reveal-btn" title="${revealTitle}">
       <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
         ${isRevealed
           ? `<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line>`
           : `<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>`}
       </svg>
     </button>
-    <button type="button" class="pm-card-action-btn copy-pwd-btn" title="Copy Password">
+    <button type="button" class="pm-card-action-btn copy-pwd-btn" title="${copyTitle}">
       <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
         <rect x="9" y="9" width="13" height="13" rx="2"></rect>
         <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
@@ -902,7 +915,7 @@ function getCardActionsHtml(isRevealed) {
         <line x1="10" y1="14" x2="21" y2="3"></line>
       </svg>
     </button>
-    <button type="button" class="pm-card-action-btn edit-btn" title="Edit Entry">
+    <button type="button" class="pm-card-action-btn edit-btn" title="${editTitle}">
       <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
         <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
         <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
@@ -920,12 +933,15 @@ function getCardActionsHtml(isRevealed) {
 // ── Card Handlers ───────────────────────────────────────────────────────────
 
 function attachCardHandlers(el, pw) {
+  const isLocked = (vaultState.isConfigured && !vaultState.isUnlocked) || !!pw.isLocked;
+
   // Inline Reveal Toggle
   const revealBtn = el.querySelector('.reveal-btn');
   if (revealBtn) {
     revealBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      if (pw.isLocked) {
+      if (isLocked) {
+        showToast('Vault is locked. Unlock to view passwords 🔒');
         openVaultUnlockModal();
         return;
       }
@@ -943,11 +959,12 @@ function attachCardHandlers(el, pw) {
   if (copyPwdBtn) {
     copyPwdBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      if (pw.isLocked) {
+      if (isLocked) {
+        showToast('Vault is locked. Unlock to copy passwords 🔒');
         openVaultUnlockModal();
         return;
       }
-      if (!pw.password) {
+      if (!pw.password || pw.password.trim() === '') {
         showToast('No password saved for this entry');
         return;
       }
@@ -990,7 +1007,8 @@ function attachCardHandlers(el, pw) {
   if (editBtn) {
     editBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      if (pw.isLocked) {
+      if (isLocked) {
+        showToast('Vault is locked. Unlock to edit entry 🔒');
         openVaultUnlockModal();
         return;
       }
@@ -1030,7 +1048,8 @@ function attachCardHandlers(el, pw) {
   // Double click on card row opens Edit Modal
   el.addEventListener('dblclick', (e) => {
     if (e.target.closest('.pm-card-actions') || e.target.closest('.col-actions') || e.target.closest('button')) return;
-    if (pw.isLocked) {
+    if (isLocked) {
+      showToast('Vault is locked. Unlock to edit entry 🔒');
       openVaultUnlockModal();
       return;
     }
@@ -1341,6 +1360,11 @@ async function handleFileSelected(e) {
 // ── Export ──────────────────────────────────────────────────────────────────
 
 function handleExport() {
+  if (vaultState.isConfigured && !vaultState.isUnlocked) {
+    showToast('Vault is locked. Unlock to export passwords 🔒');
+    openVaultUnlockModal();
+    return;
+  }
   if (passwords.length === 0) {
     showToast('No passwords to export');
     return;
@@ -1358,11 +1382,32 @@ function handleExport() {
 // ── Setup Event Listeners ───────────────────────────────────────────────────
 
 function setupEventListeners() {
-  addPasswordBtn?.addEventListener('click', openAddModal);
-  emptyAddBtn?.addEventListener('click', openAddModal);
+  addPasswordBtn?.addEventListener('click', () => {
+    if (vaultState.isConfigured && !vaultState.isUnlocked) {
+      showToast('Vault is locked. Unlock to add passwords 🔒');
+      openVaultUnlockModal();
+      return;
+    }
+    openAddModal();
+  });
+  emptyAddBtn?.addEventListener('click', () => {
+    if (vaultState.isConfigured && !vaultState.isUnlocked) {
+      showToast('Vault is locked. Unlock to add passwords 🔒');
+      openVaultUnlockModal();
+      return;
+    }
+    openAddModal();
+  });
   syncProfilesBtn?.addEventListener('click', handleFetchProfiles);
   emptySyncBtn?.addEventListener('click', handleFetchProfiles);
-  importBtn?.addEventListener('click', () => importFileInput?.click());
+  importBtn?.addEventListener('click', () => {
+    if (vaultState.isConfigured && !vaultState.isUnlocked) {
+      showToast('Vault is locked. Unlock to import passwords 🔒');
+      openVaultUnlockModal();
+      return;
+    }
+    importFileInput?.click();
+  });
   importFileInput?.addEventListener('change', handleFileSelected);
   exportBtn?.addEventListener('click', handleExport);
   themeToggleBtn?.addEventListener('click', toggleTheme);
@@ -1730,6 +1775,7 @@ async function handleVaultBtnClick() {
     try {
       await apiRequest('/api/passwords/vault/lock', 'POST');
       vaultState.isUnlocked = false;
+      revealedPasswords.clear();
       updateVaultUI();
       showToast('Vault Locked 🔒');
       reloadPasswords();

@@ -216,10 +216,16 @@ describe('Password Manager API & Scanner Test Suite', () => {
     const lockRes = await fetch(`${baseUrl}/api/passwords/vault/lock`, { method: 'POST' });
     assert.equal(lockRes.status, 200);
 
-    // 5. When locked, GET /api/passwords does NOT expose plaintext passwords
+    // 5. When locked, GET /api/passwords and GET /api/state do NOT expose plaintext or raw enc passwords
     const lockedGet = await (await fetch(`${baseUrl}/api/passwords`)).json();
     for (const p of lockedGet) {
       assert.equal(p.password, '', 'Locked vault must return empty passwords');
+      assert.equal(p.isLocked, true);
+    }
+
+    const lockedState = await (await fetch(`${baseUrl}/api/state`)).json();
+    for (const p of lockedState.passwords) {
+      assert.equal(p.password, '', 'Locked vault state must return empty passwords');
       assert.equal(p.isLocked, true);
     }
 

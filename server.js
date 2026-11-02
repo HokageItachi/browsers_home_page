@@ -75,6 +75,35 @@ function createApp(options = {}) {
     }
   }
 
+  function getSanitizedPasswordsList() {
+    if (!state || !state.passwords) return [];
+    const isConfigured = !!(state.vault && state.vault.isConfigured);
+    const isUnlocked = !isConfigured || !!activeVaultKey;
+
+    return state.passwords.map((pw) => {
+      let plainPwd = "";
+      if (!isConfigured) {
+        plainPwd = pw.password || "";
+      } else if (isUnlocked && activeVaultKey) {
+        plainPwd = decryptWithVaultKey(pw.password, activeVaultKey);
+      } else {
+        plainPwd = "";
+      }
+      return {
+        ...pw,
+        password: plainPwd,
+        isLocked: isConfigured && !isUnlocked,
+      };
+    });
+  }
+
+  function getClientState() {
+    return {
+      ...state,
+      passwords: getSanitizedPasswordsList(),
+    };
+  }
+
   try {
     const { createPasswordScanner } = require('./password-scanner');
     passwordScanner = createPasswordScanner({
@@ -212,8 +241,8 @@ function createApp(options = {}) {
       const clientRef = { res, id: clientId };
       sseClients.add(clientRef);
 
-      // Send current state immediately on connect
-      res.write(`event: init\ndata: ${JSON.stringify(state)}\n\n`);
+      // Send current state immediately on connect (with sanitized/decrypted passwords)
+      res.write(`event: init\ndata: ${JSON.stringify(getClientState())}\n\n`);
 
       req.on("close", () => {
         sseClients.delete(clientRef);
@@ -226,7 +255,7 @@ function createApp(options = {}) {
       try {
         // GET full state
         if (pathname === "/api/state" && req.method === "GET") {
-          return sendJSON(res, 200, state);
+          return sendJSON(res, 200, getClientState());
         }
 
         // Settings
@@ -543,7 +572,7 @@ function createApp(options = {}) {
           activeVaultKey = key;
           saveState();
           broadcast("vault_updated", { isConfigured: true, isUnlocked: true }, clientId);
-          broadcast("passwords_updated", { passwords: state.passwords }, clientId);
+          broadcast("passwords_updated", { passwords: getSanitizedPasswordsList() }, clientId);
           return sendJSON(res, 200, { success: true, isConfigured: true, isUnlocked: true });
         }
 
@@ -563,6 +592,7 @@ function createApp(options = {}) {
 
           activeVaultKey = key;
           broadcast("vault_updated", { isConfigured: true, isUnlocked: true }, clientId);
+          broadcast("passwords_updated", { passwords: getSanitizedPasswordsList() }, clientId);
           return sendJSON(res, 200, { success: true, isUnlocked: true });
         }
 
@@ -570,6 +600,7 @@ function createApp(options = {}) {
         if (pathname === "/api/passwords/vault/lock" && req.method === "POST") {
           activeVaultKey = null;
           broadcast("vault_updated", { isConfigured: !!(state.vault && state.vault.isConfigured), isUnlocked: false }, clientId);
+          broadcast("passwords_updated", { passwords: getSanitizedPasswordsList() }, clientId);
           return sendJSON(res, 200, { success: true, isUnlocked: false });
         }
 
@@ -622,31 +653,13 @@ function createApp(options = {}) {
           activeVaultKey = newKey;
           saveState();
           broadcast("vault_updated", { isConfigured: true, isUnlocked: true }, clientId);
+          broadcast("passwords_updated", { passwords: getSanitizedPasswordsList() }, clientId);
           return sendJSON(res, 200, { success: true, message: "Master password changed successfully" });
         }
 
         // Passwords - Get All
         if (pathname === "/api/passwords" && req.method === "GET") {
-          if (!state.passwords) state.passwords = [];
-          const isConfigured = !!(state.vault && state.vault.isConfigured);
-          const isUnlocked = !isConfigured || !!activeVaultKey;
-
-          const list = state.passwords.map((pw) => {
-            let plainPwd = "";
-            if (!isConfigured) {
-              plainPwd = pw.password || "";
-            } else if (isUnlocked && activeVaultKey) {
-              plainPwd = decryptWithVaultKey(pw.password, activeVaultKey);
-            } else {
-              plainPwd = "";
-            }
-            return {
-              ...pw,
-              password: plainPwd,
-              isLocked: isConfigured && !isUnlocked,
-            };
-          });
-          return sendJSON(res, 200, list);
+          return sendJSON(res, 200, getSanitizedPasswordsList());
         }
 
         // Passwords - Sync from Browser Profiles on Demand
@@ -718,7 +731,7 @@ function createApp(options = {}) {
             }
           }
           saveState();
-          broadcast("passwords_updated", { passwords: state.passwords }, clientId);
+          broadcast("passwords_updated", { passwords: getSanitizedPasswordsList() }, clientId);
           return sendJSON(res, 200, { success: true, importedCount: count, totalCount: state.passwords.length });
         }
 
@@ -741,7 +754,7 @@ function createApp(options = {}) {
           saveState();
           broadcast(
             "passwords_updated",
-            { passwords: state.passwords },
+            { passwords: getSanitizedPasswordsList() },
             clientId,
           );
           return sendJSON(res, 200, { success: true });
@@ -760,7 +773,7 @@ function createApp(options = {}) {
           saveState();
           broadcast(
             "passwords_updated",
-            { passwords: state.passwords },
+            { passwords: getSanitizedPasswordsList() },
             clientId,
           );
           return sendJSON(res, 200, { success: true });
@@ -799,7 +812,7 @@ function createApp(options = {}) {
           saveState();
           broadcast(
             "passwords_updated",
-            { passwords: state.passwords },
+            { passwords: getSanitizedPasswordsList() },
             clientId,
           );
           return sendJSON(res, 201, { ...newEntry, password: rawPwd });
@@ -826,7 +839,7 @@ function createApp(options = {}) {
             saveState();
             broadcast(
               "passwords_updated",
-              { passwords: state.passwords },
+              { passwords: getSanitizedPasswordsList() },
               clientId,
             );
             return sendJSON(res, 200, { ...updated, password: body.password !== undefined ? body.password : (activeVaultKey ? decryptWithVaultKey(updated.password, activeVaultKey) : updated.password) });
@@ -841,7 +854,7 @@ function createApp(options = {}) {
           saveState();
           broadcast(
             "passwords_updated",
-            { passwords: state.passwords },
+            { passwords: getSanitizedPasswordsList() },
             clientId,
           );
           return sendJSON(res, 200, { success: true });
