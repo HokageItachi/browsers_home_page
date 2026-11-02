@@ -136,6 +136,14 @@ body {
   justify-content: space-between;
   align-items: center;
   flex-shrink: 0;
+  gap: 16px;
+  width: 100%;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  flex: 1;
 }
 
 .greeting-box {
@@ -176,6 +184,8 @@ body {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex: 1;
+  justify-content: flex-end;
 }
 
 /* Live Sync Pill */
@@ -1192,12 +1202,16 @@ body {
 @media (max-width: 600px) {
   .app-header {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: center;
     gap: 8px;
+  }
+  .header-left {
+    width: 100%;
+    justify-content: center;
   }
   .header-right {
     width: 100%;
-    justify-content: space-between;
+    justify-content: center;
   }
   .greeting-time { font-size: 1.5rem; }
 
