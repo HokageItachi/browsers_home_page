@@ -312,7 +312,7 @@ function maskPassword(pwd, isLocked = false) {
 
 function analyzeStrength(pwd) {
   if (!pwd || pwd.trim() === '' || (typeof pwd === 'string' && pwd.startsWith('enc:'))) {
-    return { score: 0, pct: 0, label: 'Empty', level: 'empty', color: '#64748b' };
+    return { score: 0, pct: 0, label: 'Empty', level: 'empty', color: '#ef4444' };
   }
 
   let score = 0;
