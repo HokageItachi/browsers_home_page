@@ -347,6 +347,17 @@ function applyStrengthToBar(bar, labelEl, strength) {
   }
 }
 
+function getStrengthBadgeHtml(pw, isLocked) {
+  if (isLocked) {
+    if (pw.hasPassword) {
+      return `<span class="pm-strength-badge locked" title="Encrypted with Master Password">🔒 Encrypted</span>`;
+    }
+    return `<span class="pm-strength-badge empty">Empty</span>`;
+  }
+  const strength = analyzeStrength(pw.password);
+  return `<span class="pm-strength-badge ${strength.level}">${strength.label}</span>`;
+}
+
 // ── Data Aggregations ───────────────────────────────────────────────────────
 
 function getCategories() {
@@ -390,7 +401,7 @@ function getFilteredAndSorted() {
     } else if (activeCategory === '__weak__') {
       list = list.filter(p => (p.password && p.password.trim() !== '') && analyzeStrength(p.password).level === 'weak');
     } else if (activeCategory === '__empty__') {
-      list = list.filter(p => !p.password || p.password.trim() === '');
+      list = list.filter(p => !p.hasPassword && (!p.password || p.password.trim() === ''));
     } else if (activeCategory === '__medium__') {
       list = list.filter(p => (p.password && p.password.trim() !== '') && analyzeStrength(p.password).level === 'medium');
     } else if (activeCategory === '__strong__') {
@@ -490,7 +501,7 @@ function renderCategories() {
   }
 
   // 3b. Empty / Missing Passwords
-  const emptyCount = passwords.filter(p => !p.password || p.password.trim() === '').length;
+  const emptyCount = passwords.filter(p => !p.hasPassword && (!p.password || p.password.trim() === '')).length;
   if (emptyCount > 0) {
     appendCatItem(categoryList, {
       label: 'Empty Passwords',
@@ -617,19 +628,29 @@ function renderBrowserChips() {
 function renderStrengthStats() {
   if (!statStrong) return;
   let strong = 0, medium = 0, weak = 0, empty = 0;
+  const isVaultLocked = vaultState.isConfigured && !vaultState.isUnlocked;
+
   passwords.forEach(p => {
-    if (!p.password || p.password.trim() === '') {
+    const isEntryEmpty = !p.hasPassword && (!p.password || p.password.trim() === '');
+    if (isEntryEmpty) {
       empty++;
-    } else {
+    } else if (!isVaultLocked) {
       const s = analyzeStrength(p.password).level;
       if (s === 'strong') strong++;
       else if (s === 'medium') medium++;
       else weak++;
     }
   });
-  statStrong.textContent = strong;
-  statMedium.textContent = medium;
-  statWeak.textContent = weak;
+
+  if (isVaultLocked) {
+    statStrong.textContent = '🔒';
+    statMedium.textContent = '🔒';
+    statWeak.textContent = '🔒';
+  } else {
+    statStrong.textContent = strong;
+    statMedium.textContent = medium;
+    statWeak.textContent = weak;
+  }
   if (statEmpty) statEmpty.textContent = empty;
 }
 
@@ -707,7 +728,9 @@ function renderGridView(items) {
     const relTime = formatRelativeTime(pw.updatedAt || pw.createdAt);
     const isLocked = (vaultState.isConfigured && !vaultState.isUnlocked) || !!pw.isLocked;
     const isRevealed = !isLocked && revealedPasswords.has(pw.id);
-    const displayPwd = isLocked ? '🔒 Locked' : (isRevealed ? escapeHtml(pw.password || '(none)') : maskPassword(pw.password, isLocked));
+    const displayPwd = isLocked
+      ? (pw.hasPassword ? '🔒 Locked' : '— (No Password)')
+      : (isRevealed ? escapeHtml(pw.password || '(none)') : maskPassword(pw.password, isLocked));
 
     const card = document.createElement('div');
     card.className = 'pm-card';
@@ -734,7 +757,7 @@ function renderGridView(items) {
       <div class="pm-card-meta">
         ${getSourceBadgeHtml(pw)}
         <span class="pm-cat-badge">${getCategoryIcon(pw.category || 'General')} ${escapeHtml(pw.category || 'General')}</span>
-        <span class="pm-strength-badge ${strength.level}">${strength.label}</span>
+        ${getStrengthBadgeHtml(pw, isLocked)}
       </div>
 
       <div class="pm-card-bottom">
@@ -798,7 +821,7 @@ function renderListView(items) {
         <span class="pm-cat-badge">${getCategoryIcon(pw.category || 'General')} ${escapeHtml(pw.category || 'General')}</span>
       </div>
       <div class="col-strength">
-        <span class="pm-strength-badge ${strength.level}">${strength.label}</span>
+        ${getStrengthBadgeHtml(pw, isLocked)}
       </div>
       <div class="col-actions">
         ${getCardActionsHtml(isRevealed, isLocked)}
@@ -830,7 +853,9 @@ function renderCompactView(items) {
     const initial = (pw.title || domain || 'P')[0].toUpperCase();
     const isLocked = (vaultState.isConfigured && !vaultState.isUnlocked) || !!pw.isLocked;
     const isRevealed = !isLocked && revealedPasswords.has(pw.id);
-    const displayPwd = isLocked ? '🔒 Locked' : (isRevealed ? escapeHtml(pw.password || '(none)') : maskPassword(pw.password, isLocked));
+    const displayPwd = isLocked
+      ? (pw.hasPassword ? '🔒 Locked' : '—')
+      : (isRevealed ? escapeHtml(pw.password || '(none)') : maskPassword(pw.password, isLocked));
 
     const row = document.createElement('div');
     row.className = 'pm-compact-row';

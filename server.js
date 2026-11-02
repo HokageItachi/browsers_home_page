@@ -81,6 +81,7 @@ function createApp(options = {}) {
     const isUnlocked = !isConfigured || !!activeVaultKey;
 
     return state.passwords.map((pw) => {
+      const hasPassword = !!(pw.password && typeof pw.password === 'string' && pw.password.trim() !== '');
       let plainPwd = "";
       if (!isConfigured) {
         plainPwd = pw.password || "";
@@ -92,6 +93,7 @@ function createApp(options = {}) {
       return {
         ...pw,
         password: plainPwd,
+        hasPassword,
         isLocked: isConfigured && !isUnlocked,
       };
     });
