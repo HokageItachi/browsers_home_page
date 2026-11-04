@@ -28,7 +28,8 @@ const MIME_TYPES = {
 function createApp(options = {}) {
   const dataFile = options.dataFile || DEFAULT_DATA_FILE;
   const publicDir = options.publicDir || DEFAULT_PUBLIC_DIR;
-  const configuredPort = options.port !== undefined ? options.port : DEFAULT_PORT;
+  const configuredPort =
+    options.port !== undefined ? options.port : DEFAULT_PORT;
 
   let state = null;
   const sseClients = new Set();
@@ -38,40 +39,56 @@ function createApp(options = {}) {
   let activeVaultKey = null;
 
   function deriveVaultKey(masterPassword, saltHex) {
-    const salt = Buffer.from(saltHex, 'hex');
-    return crypto.pbkdf2Sync(String(masterPassword), salt, 100000, 32, 'sha256');
+    const salt = Buffer.from(saltHex, "hex");
+    return crypto.pbkdf2Sync(
+      String(masterPassword),
+      salt,
+      100000,
+      32,
+      "sha256",
+    );
   }
 
   function computeVaultCheck(key) {
-    return crypto.createHmac('sha256', key).update('vault_auth_token_check_v1').digest('hex');
+    return crypto
+      .createHmac("sha256", key)
+      .update("vault_auth_token_check_v1")
+      .digest("hex");
   }
 
   function encryptWithVaultKey(plainText, key) {
-    if (!plainText) return '';
-    if (typeof plainText === 'string' && plainText.startsWith('enc:aes256:')) return plainText;
+    if (!plainText) return "";
+    if (typeof plainText === "string" && plainText.startsWith("enc:aes256:"))
+      return plainText;
     const iv = crypto.randomBytes(12);
-    const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
-    const enc = Buffer.concat([cipher.update(String(plainText), 'utf8'), cipher.final()]);
+    const cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
+    const enc = Buffer.concat([
+      cipher.update(String(plainText), "utf8"),
+      cipher.final(),
+    ]);
     const tag = cipher.getAuthTag();
-    return `enc:aes256:${iv.toString('hex')}:${tag.toString('hex')}:${enc.toString('hex')}`;
+    return `enc:aes256:${iv.toString("hex")}:${tag.toString("hex")}:${enc.toString("hex")}`;
   }
 
   function decryptWithVaultKey(encryptedStr, key) {
-    if (!encryptedStr || typeof encryptedStr !== 'string') return '';
-    if (!encryptedStr.startsWith('enc:aes256:')) return encryptedStr;
-    const parts = encryptedStr.split(':');
-    if (parts.length !== 5) return '';
+    if (!encryptedStr || typeof encryptedStr !== "string") return "";
+    if (!encryptedStr.startsWith("enc:aes256:")) return encryptedStr;
+    const parts = encryptedStr.split(":");
+    if (parts.length !== 5) return "";
     const [, , ivHex, tagHex, cipherHex] = parts;
     try {
-      const iv = Buffer.from(ivHex, 'hex');
-      const tag = Buffer.from(tagHex, 'hex');
-      const ciphertext = Buffer.from(cipherHex, 'hex');
-      const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+      const iv = Buffer.from(ivHex, "hex");
+      const tag = Buffer.from(tagHex, "hex");
+      const ciphertext = Buffer.from(cipherHex, "hex");
+      const decipher = crypto.createDecipheriv("aes-256-gcm", key, iv);
       decipher.setAuthTag(tag);
-      const decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
-      return decrypted.toString('utf8');
+      const decrypted = Buffer.concat([
+        decipher.update(ciphertext),
+        decipher.final(),
+      ]);
+      return decrypted.toString("utf8");
     } catch (_e) {
-      return '';
+      return "";
     }
   }
 
@@ -81,7 +98,11 @@ function createApp(options = {}) {
     const isUnlocked = !isConfigured || !!activeVaultKey;
 
     return state.passwords.map((pw) => {
-      const hasPassword = !!(pw.password && typeof pw.password === 'string' && pw.password.trim() !== '');
+      const hasPassword = !!(
+        pw.password &&
+        typeof pw.password === "string" &&
+        pw.password.trim() !== ""
+      );
       let plainPwd = "";
       if (!isConfigured) {
         plainPwd = pw.password || "";
@@ -107,12 +128,13 @@ function createApp(options = {}) {
   }
 
   try {
-    const { createPasswordScanner } = require('./password-scanner');
+    const { createPasswordScanner } = require("./password-scanner");
     passwordScanner = createPasswordScanner({
       getState: () => state,
       saveState: saveStateSync,
       broadcast: (type, payload, origId) => broadcast(type, payload, origId),
-      encryptPassword: (pwd) => (activeVaultKey ? encryptWithVaultKey(pwd, activeVaultKey) : pwd),
+      encryptPassword: (pwd) =>
+        activeVaultKey ? encryptWithVaultKey(pwd, activeVaultKey) : pwd,
       intervalMs: 60000,
     });
   } catch (_e) {}
@@ -125,7 +147,8 @@ function createApp(options = {}) {
         state = JSON.parse(raw);
         if (!Array.isArray(state.passwords)) state.passwords = [];
         if (!Array.isArray(state.bookmarks)) state.bookmarks = [];
-        if (!state.vault) state.vault = { isConfigured: false, salt: null, testHash: null };
+        if (!state.vault)
+          state.vault = { isConfigured: false, salt: null, testHash: null };
       } else {
         state = {
           settings: {
@@ -145,7 +168,15 @@ function createApp(options = {}) {
       }
     } catch (err) {
       console.error("Error loading state:", err);
-      state = { settings: {}, sites: [], todos: [], notes: [], bookmarks: [], passwords: [], vault: { isConfigured: false, salt: null, testHash: null } };
+      state = {
+        settings: {},
+        sites: [],
+        todos: [],
+        notes: [],
+        bookmarks: [],
+        passwords: [],
+        vault: { isConfigured: false, salt: null, testHash: null },
+      };
     }
   }
 
@@ -186,7 +217,9 @@ function createApp(options = {}) {
       req.on("data", (chunk) => {
         body += chunk;
         if (body.length > 5 * 1024 * 1024) {
-          reject(new Error("Request entity too large"));
+          const err = new Error("Request entity too large");
+          err.statusCode = 413;
+          reject(err);
         }
       });
       req.on("end", () => {
@@ -194,7 +227,9 @@ function createApp(options = {}) {
         try {
           resolve(JSON.parse(body));
         } catch (err) {
-          reject(new Error("Invalid JSON"));
+          const perr = new Error("Invalid JSON");
+          perr.statusCode = 400;
+          reject(perr);
         }
       });
       req.on("error", reject);
@@ -272,6 +307,9 @@ function createApp(options = {}) {
         // Sites - Add
         if (pathname === "/api/sites" && req.method === "POST") {
           const body = await parseRequestBody(req);
+          if (!body || typeof body.url !== "string" || !body.url.trim()) {
+            return sendJSON(res, 400, { error: "url is required" });
+          }
           const newSite = {
             id:
               "site-" +
@@ -533,7 +571,10 @@ function createApp(options = {}) {
         }
 
         // Vault - Status
-        if (pathname === "/api/passwords/vault/status" && req.method === "GET") {
+        if (
+          pathname === "/api/passwords/vault/status" &&
+          req.method === "GET"
+        ) {
           const isConfigured = !!(state.vault && state.vault.isConfigured);
           const isUnlocked = !isConfigured || !!activeVaultKey;
           return sendJSON(res, 200, {
@@ -543,11 +584,16 @@ function createApp(options = {}) {
         }
 
         // Vault - Setup Master Password
-        if (pathname === "/api/passwords/vault/setup" && req.method === "POST") {
+        if (
+          pathname === "/api/passwords/vault/setup" &&
+          req.method === "POST"
+        ) {
           const body = await parseRequestBody(req);
           const masterPassword = (body.masterPassword || "").trim();
           if (!masterPassword || masterPassword.length < 6) {
-            return sendJSON(res, 400, { error: "Master password must be at least 6 characters" });
+            return sendJSON(res, 400, {
+              error: "Master password must be at least 6 characters",
+            });
           }
 
           const salt = crypto.randomBytes(16);
@@ -573,13 +619,28 @@ function createApp(options = {}) {
 
           activeVaultKey = key;
           saveState();
-          broadcast("vault_updated", { isConfigured: true, isUnlocked: true }, clientId);
-          broadcast("passwords_updated", { passwords: getSanitizedPasswordsList() }, clientId);
-          return sendJSON(res, 200, { success: true, isConfigured: true, isUnlocked: true });
+          broadcast(
+            "vault_updated",
+            { isConfigured: true, isUnlocked: true },
+            clientId,
+          );
+          broadcast(
+            "passwords_updated",
+            { passwords: getSanitizedPasswordsList() },
+            clientId,
+          );
+          return sendJSON(res, 200, {
+            success: true,
+            isConfigured: true,
+            isUnlocked: true,
+          });
         }
 
         // Vault - Unlock
-        if (pathname === "/api/passwords/vault/unlock" && req.method === "POST") {
+        if (
+          pathname === "/api/passwords/vault/unlock" &&
+          req.method === "POST"
+        ) {
           const body = await parseRequestBody(req);
           const masterPassword = (body.masterPassword || "").trim();
           if (!state.vault || !state.vault.isConfigured) {
@@ -593,21 +654,43 @@ function createApp(options = {}) {
           }
 
           activeVaultKey = key;
-          broadcast("vault_updated", { isConfigured: true, isUnlocked: true }, clientId);
-          broadcast("passwords_updated", { passwords: getSanitizedPasswordsList() }, clientId);
+          broadcast(
+            "vault_updated",
+            { isConfigured: true, isUnlocked: true },
+            clientId,
+          );
+          broadcast(
+            "passwords_updated",
+            { passwords: getSanitizedPasswordsList() },
+            clientId,
+          );
           return sendJSON(res, 200, { success: true, isUnlocked: true });
         }
 
         // Vault - Lock
         if (pathname === "/api/passwords/vault/lock" && req.method === "POST") {
           activeVaultKey = null;
-          broadcast("vault_updated", { isConfigured: !!(state.vault && state.vault.isConfigured), isUnlocked: false }, clientId);
-          broadcast("passwords_updated", { passwords: getSanitizedPasswordsList() }, clientId);
+          broadcast(
+            "vault_updated",
+            {
+              isConfigured: !!(state.vault && state.vault.isConfigured),
+              isUnlocked: false,
+            },
+            clientId,
+          );
+          broadcast(
+            "passwords_updated",
+            { passwords: getSanitizedPasswordsList() },
+            clientId,
+          );
           return sendJSON(res, 200, { success: true, isUnlocked: false });
         }
 
         // Vault - Change Master Password
-        if (pathname === "/api/passwords/vault/change-password" && req.method === "POST") {
+        if (
+          pathname === "/api/passwords/vault/change-password" &&
+          req.method === "POST"
+        ) {
           if (!state.vault || !state.vault.isConfigured) {
             return sendJSON(res, 400, { error: "Vault is not configured yet" });
           }
@@ -616,17 +699,23 @@ function createApp(options = {}) {
           const newPassword = (body.newMasterPassword || "").trim();
 
           if (!currentPassword) {
-            return sendJSON(res, 400, { error: "Current master password is required" });
+            return sendJSON(res, 400, {
+              error: "Current master password is required",
+            });
           }
           if (!newPassword || newPassword.length < 6) {
-            return sendJSON(res, 400, { error: "New master password must be at least 6 characters" });
+            return sendJSON(res, 400, {
+              error: "New master password must be at least 6 characters",
+            });
           }
 
           // Verify current password
           const oldKey = deriveVaultKey(currentPassword, state.vault.salt);
           const testHash = computeVaultCheck(oldKey);
           if (testHash !== state.vault.testHash) {
-            return sendJSON(res, 401, { error: "Current master password is incorrect" });
+            return sendJSON(res, 401, {
+              error: "Current master password is incorrect",
+            });
           }
 
           // Generate new salt and derive new key
@@ -654,9 +743,20 @@ function createApp(options = {}) {
 
           activeVaultKey = newKey;
           saveState();
-          broadcast("vault_updated", { isConfigured: true, isUnlocked: true }, clientId);
-          broadcast("passwords_updated", { passwords: getSanitizedPasswordsList() }, clientId);
-          return sendJSON(res, 200, { success: true, message: "Master password changed successfully" });
+          broadcast(
+            "vault_updated",
+            { isConfigured: true, isUnlocked: true },
+            clientId,
+          );
+          broadcast(
+            "passwords_updated",
+            { passwords: getSanitizedPasswordsList() },
+            clientId,
+          );
+          return sendJSON(res, 200, {
+            success: true,
+            message: "Master password changed successfully",
+          });
         }
 
         // Passwords - Get All
@@ -679,50 +779,82 @@ function createApp(options = {}) {
           if (!state.passwords) state.passwords = [];
           const isConfigured = !!(state.vault && state.vault.isConfigured);
           if (isConfigured && !activeVaultKey) {
-            return sendJSON(res, 403, { error: "Vault is locked. Unlock vault to import passwords." });
+            return sendJSON(res, 403, {
+              error: "Vault is locked. Unlock vault to import passwords.",
+            });
           }
 
           const body = await parseRequestBody(req);
-          const items = Array.isArray(body) ? body : (body.passwords || []);
+          const items = Array.isArray(body) ? body : body.passwords || [];
           let count = 0;
 
           function normUrl(u) {
-            return (u || '').toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/+$/, '');
+            return (u || "")
+              .toLowerCase()
+              .replace(/^https?:\/\//, "")
+              .replace(/^www\./, "")
+              .replace(/\/+$/, "");
           }
 
           for (const item of items) {
-            const itemUrl = item.url || '';
-            const itemUser = (item.username || item.login || '').trim();
-            let rawPwd = item.password || '';
-            const itemTitle = item.title || item.name || '';
+            const itemUrl = item.url || "";
+            const itemUser = (item.username || item.login || "").trim();
+            let rawPwd = item.password || "";
+            const itemTitle = item.title || item.name || "";
 
             if (!itemTitle && !itemUrl && !itemUser) continue;
 
-            const storedPwd = (activeVaultKey && rawPwd) ? encryptWithVaultKey(rawPwd, activeVaultKey) : rawPwd;
+            const storedPwd =
+              activeVaultKey && rawPwd
+                ? encryptWithVaultKey(rawPwd, activeVaultKey)
+                : rawPwd;
             const nUrl = normUrl(itemUrl);
-            const existing = nUrl ? state.passwords.find(p => normUrl(p.url) === nUrl && (p.username || '').trim().toLowerCase() === itemUser.toLowerCase()) : null;
+            const existing = nUrl
+              ? state.passwords.find(
+                  (p) =>
+                    normUrl(p.url) === nUrl &&
+                    (p.username || "").trim().toLowerCase() ===
+                      itemUser.toLowerCase(),
+                )
+              : null;
 
             if (existing) {
               if (rawPwd) existing.password = storedPwd;
-              if (itemTitle && (!existing.title || existing.title === 'Saved Login' || existing.title === 'Untitled')) {
+              if (
+                itemTitle &&
+                (!existing.title ||
+                  existing.title === "Saved Login" ||
+                  existing.title === "Untitled")
+              ) {
                 existing.title = itemTitle;
               }
               if (item.notes) existing.notes = item.notes;
-              if (item.category && (!existing.category || existing.category === 'General')) {
+              if (
+                item.category &&
+                (!existing.category || existing.category === "General")
+              ) {
                 existing.category = item.category;
               }
               existing.updatedAt = Date.now();
               count++;
             } else {
               const newEntry = {
-                id: "pw-" + Date.now() + "-" + Math.random().toString(36).substr(2, 4),
+                id:
+                  "pw-" +
+                  Date.now() +
+                  "-" +
+                  Math.random().toString(36).substr(2, 4),
                 title: itemTitle || "Untitled",
                 url: itemUrl,
                 username: itemUser,
                 password: storedPwd,
                 category: item.category || "General",
                 notes: item.notes || "",
-                tags: Array.isArray(item.tags) ? item.tags : (item.browser ? [item.browser] : []),
+                tags: Array.isArray(item.tags)
+                  ? item.tags
+                  : item.browser
+                    ? [item.browser]
+                    : [],
                 starred: !!item.starred,
                 browserSource: item.browserSource || item.browser || "Imported",
                 createdAt: item.createdAt || Date.now(),
@@ -733,8 +865,16 @@ function createApp(options = {}) {
             }
           }
           saveState();
-          broadcast("passwords_updated", { passwords: getSanitizedPasswordsList() }, clientId);
-          return sendJSON(res, 200, { success: true, importedCount: count, totalCount: state.passwords.length });
+          broadcast(
+            "passwords_updated",
+            { passwords: getSanitizedPasswordsList() },
+            clientId,
+          );
+          return sendJSON(res, 200, {
+            success: true,
+            importedCount: count,
+            totalCount: state.passwords.length,
+          });
         }
 
         // Passwords - Categories Rename
@@ -786,12 +926,17 @@ function createApp(options = {}) {
           if (!state.passwords) state.passwords = [];
           const isConfigured = !!(state.vault && state.vault.isConfigured);
           if (isConfigured && !activeVaultKey) {
-            return sendJSON(res, 403, { error: "Vault is locked. Unlock vault to add passwords." });
+            return sendJSON(res, 403, {
+              error: "Vault is locked. Unlock vault to add passwords.",
+            });
           }
 
           const body = await parseRequestBody(req);
           const rawPwd = body.password || "";
-          const storedPwd = (activeVaultKey && rawPwd) ? encryptWithVaultKey(rawPwd, activeVaultKey) : rawPwd;
+          const storedPwd =
+            activeVaultKey && rawPwd
+              ? encryptWithVaultKey(rawPwd, activeVaultKey)
+              : rawPwd;
 
           const newEntry = {
             id:
@@ -826,16 +971,26 @@ function createApp(options = {}) {
           if (!state.passwords) state.passwords = [];
           const isConfigured = !!(state.vault && state.vault.isConfigured);
           if (isConfigured && !activeVaultKey) {
-            return sendJSON(res, 403, { error: "Vault is locked. Unlock vault to update passwords." });
+            return sendJSON(res, 403, {
+              error: "Vault is locked. Unlock vault to update passwords.",
+            });
           }
 
           const pwId = passwordMatch[1];
           const body = await parseRequestBody(req);
           const index = state.passwords.findIndex((p) => p.id === pwId);
           if (index !== -1) {
-            const updated = { ...state.passwords[index], ...body, id: pwId, updatedAt: Date.now() };
+            const updated = {
+              ...state.passwords[index],
+              ...body,
+              id: pwId,
+              updatedAt: Date.now(),
+            };
             if (body.password !== undefined) {
-              updated.password = (activeVaultKey && body.password) ? encryptWithVaultKey(body.password, activeVaultKey) : body.password;
+              updated.password =
+                activeVaultKey && body.password
+                  ? encryptWithVaultKey(body.password, activeVaultKey)
+                  : body.password;
             }
             state.passwords[index] = updated;
             saveState();
@@ -844,7 +999,15 @@ function createApp(options = {}) {
               { passwords: getSanitizedPasswordsList() },
               clientId,
             );
-            return sendJSON(res, 200, { ...updated, password: body.password !== undefined ? body.password : (activeVaultKey ? decryptWithVaultKey(updated.password, activeVaultKey) : updated.password) });
+            return sendJSON(res, 200, {
+              ...updated,
+              password:
+                body.password !== undefined
+                  ? body.password
+                  : activeVaultKey
+                    ? decryptWithVaultKey(updated.password, activeVaultKey)
+                    : updated.password,
+            });
           }
           return sendJSON(res, 404, { error: "Password not found" });
         }
@@ -865,7 +1028,7 @@ function createApp(options = {}) {
         return sendJSON(res, 404, { error: "API route not found" });
       } catch (err) {
         console.error("API Error:", err);
-        return sendJSON(res, 500, { error: err.message });
+        return sendJSON(res, err.statusCode || 500, { error: err.message });
       }
     }
 
@@ -971,47 +1134,50 @@ function createApp(options = {}) {
 
 // If executed directly from CLI
 if (require.main === module) {
-  const { createBookmarkScanner } = require('./bookmark-scanner');
+  const { createBookmarkScanner } = require("./bookmark-scanner");
   const app = createApp();
-  app.start().then(({ port }) => {
-    console.log(`=======================================================`);
-    console.log(`  🌐 Multi-Browser Synchronized Home Page is running!  `);
-    console.log(`  🔗 Open URL: http://localhost:${port}                 `);
-    console.log(`  ⚡ Real-Time SSE Sync active across all browsers     `);
-    console.log(`  🔖 Bookmark auto-import scanning every 30 seconds    `);
-    console.log(`  🔐 Password auto-import scanning every 60 seconds    `);
-    console.log(`=======================================================`);
+  app
+    .start()
+    .then(({ port }) => {
+      console.log(`=======================================================`);
+      console.log(`  🌐 Multi-Browser Synchronized Home Page is running!  `);
+      console.log(`  🔗 Open URL: http://localhost:${port}                 `);
+      console.log(`  ⚡ Real-Time SSE Sync active across all browsers     `);
+      console.log(`  🔖 Bookmark auto-import scanning every 30 seconds    `);
+      console.log(`  🔐 Password auto-import scanning every 60 seconds    `);
+      console.log(`=======================================================`);
 
-    // Start bookmark auto-scanner
-    const scanner = createBookmarkScanner({
-      getState: app.getState,
-      saveState: app.saveStateSync,
-      broadcast: app.broadcast,
-      intervalMs: 30000,
-    });
-    scanner.start();
+      // Start bookmark auto-scanner
+      const scanner = createBookmarkScanner({
+        getState: app.getState,
+        saveState: app.saveStateSync,
+        broadcast: app.broadcast,
+        intervalMs: 30000,
+      });
+      scanner.start();
 
-    // Start password auto-scanner
-    if (app.passwordScanner) {
-      app.passwordScanner.start();
-    }
+      // Start password auto-scanner
+      if (app.passwordScanner) {
+        app.passwordScanner.start();
+      }
 
-    // Graceful shutdown
-    process.on('SIGINT', async () => {
-      scanner.stop();
-      if (app.passwordScanner) app.passwordScanner.stop();
-      await app.stop();
-      process.exit(0);
+      // Graceful shutdown
+      process.on("SIGINT", async () => {
+        scanner.stop();
+        if (app.passwordScanner) app.passwordScanner.stop();
+        await app.stop();
+        process.exit(0);
+      });
+      process.on("SIGTERM", async () => {
+        scanner.stop();
+        if (app.passwordScanner) app.passwordScanner.stop();
+        await app.stop();
+        process.exit(0);
+      });
+    })
+    .catch(() => {
+      process.exit(1);
     });
-    process.on('SIGTERM', async () => {
-      scanner.stop();
-      if (app.passwordScanner) app.passwordScanner.stop();
-      await app.stop();
-      process.exit(0);
-    });
-  }).catch(() => {
-    process.exit(1);
-  });
 }
 
 module.exports = { createApp };

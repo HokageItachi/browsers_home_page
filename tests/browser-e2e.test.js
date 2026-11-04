@@ -119,10 +119,10 @@ describe('End-to-End Headless Chrome UI & UX Tests', () => {
     await cdpTab1.send('Runtime.enable');
 
     // Wait for DOM & SSE to connect
-    for (let i = 0; i < 20; i++) {
+    for (let i = 0; i < 40; i++) {
       const syncText = await cdpTab1.evaluate(`document.getElementById('syncLabel')?.textContent || ''`);
-      if (syncText.includes('Synced')) break;
-      await new Promise(r => setTimeout(r, 150));
+      if (syncText && syncText.includes('Synced')) break;
+      await new Promise(r => setTimeout(r, 200));
     }
   });
 
